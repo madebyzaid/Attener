@@ -83,7 +83,25 @@
             </Setter>
         </Style>
 
-        <Style x:Key="NavigationButtonStyle" TargetType="Button">
+        <Style TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+            <Setter Property="Background" Value="{StaticResource SurfaceBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="#454B58" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonChrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                            <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ButtonChrome" Property="Background" Value="#343B49"/><Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/></Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="ButtonChrome" Property="Background" Value="#454B58"/></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.55"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>        <Style x:Key="NavigationButtonStyle" TargetType="Button">
             <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
@@ -109,5 +127,6 @@
         </Style>
     </Application.Resources>
 </Application>
+
 
 
