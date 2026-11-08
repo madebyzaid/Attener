@@ -44,7 +44,7 @@
             <Setter Property="FontFamily" Value="Segoe UI" />
         </Style>        <Style TargetType="ComboBox">
             <Setter Property="OverridesDefaultStyle" Value="True" />
-            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox"><Grid><Border x:Name="Box" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="4"/><ContentPresenter Margin="{TemplateBinding Padding}" VerticalAlignment="Center" HorizontalAlignment="Left" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" IsHitTestVisible="False"/><ToggleButton Focusable="False" Background="Transparent" BorderThickness="0" HorizontalAlignment="Right" Width="34" IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"><TextBlock Text="⌄" Foreground="{StaticResource PrimaryTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/></ToggleButton><Popup Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade"><Border Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="#454B58" BorderThickness="1"><ScrollViewer><ItemsPresenter/></ScrollViewer></Border></Popup></Grid></ControlTemplate></Setter.Value></Setter>
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox"><Grid><Border x:Name="Box" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="4"/><ContentPresenter Margin="{TemplateBinding Padding}" VerticalAlignment="Center" HorizontalAlignment="Left" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{Binding ItemTemplate, RelativeSource={RelativeSource TemplatedParent}}" IsHitTestVisible="False"/><ToggleButton Focusable="False" Background="Transparent" BorderThickness="0" HorizontalAlignment="Right" Width="34" IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"><TextBlock Text="⌄" Foreground="{StaticResource PrimaryTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/></ToggleButton><Popup Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade"><Border Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="#454B58" BorderThickness="1"><ScrollViewer><ItemsPresenter/></ScrollViewer></Border></Popup></Grid></ControlTemplate></Setter.Value></Setter>
             <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
             <Setter Property="Background" Value="{StaticResource SurfaceBackgroundBrush}" />
             <Setter Property="BorderBrush" Value="#454B58" />
@@ -129,6 +129,7 @@
         </Style>
     </Application.Resources>
 </Application>
+
 
 
 
