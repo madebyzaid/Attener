@@ -18,11 +18,11 @@
                 <StackPanel>
                     <TextBlock Text="WORKSPACE" Foreground="{StaticResource SecondaryTextBrush}" FontSize="10" FontWeight="SemiBold" Margin="8,0,0,10" />
                     <Button Content="Overview" Tag="Overview" Click="Navigate_Click" Style="{StaticResource NavigationButtonStyle}" Foreground="{StaticResource PrimaryTextBrush}" />
-                    <Button Content="Timetable" Tag="Timetable" Click="Navigate_Click" Style="{StaticResource NavigationButtonStyle}" />
                     <Button Content="Attendance" Tag="Attendance" Click="Navigate_Click" Style="{StaticResource NavigationButtonStyle}" />
+                    <Button Content="Statistics" Tag="Statistics" Click="Navigate_Click" Style="{StaticResource NavigationButtonStyle}" />
+                    <Button Content="Timetable" Tag="Timetable" Click="Navigate_Click" Style="{StaticResource NavigationButtonStyle}" />
                     <Button Content="Calendar" Tag="Calendar" Click="Navigate_Click" Style="{StaticResource NavigationButtonStyle}" />
                     <Button Content="Subjects" Tag="Subjects" Click="Navigate_Click" Style="{StaticResource NavigationButtonStyle}" />
-                    <Button Content="Statistics" Tag="Statistics" Click="Navigate_Click" Style="{StaticResource NavigationButtonStyle}" />
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -36,4 +36,5 @@
         </Grid>
     </Grid>
 </Window>
+
 
