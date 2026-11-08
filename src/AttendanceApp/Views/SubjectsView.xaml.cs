@@ -80,6 +80,19 @@ public partial class SubjectsView : UserControl
         LoadSubjects();
     }
 
+    private void RenameSubject_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: SubjectSummary subject }) return;
+        var input = new TextBox { Text = subject.Name, Width = 300, Margin = new Thickness(0, 12, 0, 12) };
+        var panel = new StackPanel { Margin = new Thickness(18) };
+        panel.Children.Add(new TextBlock { Text = "New subject name" });
+        panel.Children.Add(input);
+        var dialog = new Window { Title = "Rename subject", Content = panel, SizeToContent = SizeToContent.WidthAndHeight, WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = Window.GetWindow(this), Background = (System.Windows.Media.Brush)FindResource("SurfaceBackgroundBrush"), Foreground = (System.Windows.Media.Brush)FindResource("PrimaryTextBrush") };
+        input.KeyDown += (_, key) => { if (key.Key == Key.Enter) dialog.DialogResult = true; };
+        if (dialog.ShowDialog() != true || string.IsNullOrWhiteSpace(input.Text)) return;
+        try { _repository.RenameSubject(subject.Id, input.Text); LoadSubjects(); }
+        catch (Microsoft.Data.Sqlite.SqliteException) { MessageBox.Show("A subject with that name already exists.", "Name already used", MessageBoxButton.OK, MessageBoxImage.Information); }
+    }
     private void ArchiveSubject_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: long subjectId, DataContext: SubjectSummary subject })
@@ -99,4 +112,5 @@ public partial class SubjectsView : UserControl
         LoadSubjects();
     }
 }
+
 

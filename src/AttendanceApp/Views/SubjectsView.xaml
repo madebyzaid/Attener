@@ -10,9 +10,11 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="{Binding Name}" FontSize="15" VerticalAlignment="Center" />
-                    <Button Grid.Column="1" Content="Archive" Tag="{Binding Id}"
+                                        <TextBlock Text="{Binding Name}" FontSize="15" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Content="Rename" Tag="{Binding}" Click="RenameSubject_Click" Padding="12,6" Margin="0,0,8,0" Foreground="{StaticResource SecondaryTextBrush}" Background="#292E39" BorderThickness="0" Cursor="Hand" />
+                    <Button Grid.Column="2" Content="Archive" Tag="{Binding Id}"
                             Click="ArchiveSubject_Click" Padding="12,6"
                             Foreground="{StaticResource SecondaryTextBrush}"
                             Background="#292E39" BorderThickness="0" Cursor="Hand">
@@ -53,10 +55,11 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <TextBox x:Name="SubjectNameBox" Height="42" Padding="12,9"
                          VerticalContentAlignment="Center" FontSize="14"
-                         Background="#171A20" Foreground="White" BorderBrush="#373D49"
+                         
                          BorderThickness="1" ToolTip="Subject name"
                          KeyDown="SubjectNameBox_KeyDown" />
                 <Button Grid.Column="1" Content="Add subject" Margin="12,0,0,0" Padding="18,0"
@@ -82,3 +85,6 @@
         </Grid>
     </Grid>
 </UserControl>
+
+
+

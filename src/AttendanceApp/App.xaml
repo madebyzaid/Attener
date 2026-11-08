@@ -15,7 +15,34 @@
             <Setter Property="FontFamily" Value="Segoe UI" />
         </Style>
 
-        <Style TargetType="ComboBox">
+        <Style TargetType="TextBox">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+            <Setter Property="Background" Value="{StaticResource SurfaceBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="#454B58" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="CaretBrush" Value="{StaticResource PrimaryTextBrush}" />
+        </Style>
+        <Style TargetType="DatePickerTextBox">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+            <Setter Property="Background" Value="{StaticResource SurfaceBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="#454B58" />
+            <Setter Property="CaretBrush" Value="{StaticResource PrimaryTextBrush}" />
+        </Style>
+        <Style TargetType="CalendarDayButton">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+            <Setter Property="Background" Value="{StaticResource SurfaceBackgroundBrush}" />
+        </Style>
+        <Style TargetType="CalendarButton">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+            <Setter Property="Background" Value="{StaticResource SurfaceBackgroundBrush}" />
+        </Style>        <Style TargetType="DatePicker">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+            <Setter Property="Background" Value="{StaticResource SurfaceBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="#454B58" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
+        </Style>        <Style TargetType="ComboBox">
             <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
             <Setter Property="Background" Value="{StaticResource SurfaceBackgroundBrush}" />
             <Setter Property="BorderBrush" Value="#454B58" />
@@ -82,3 +109,5 @@
         </Style>
     </Application.Resources>
 </Application>
+
+

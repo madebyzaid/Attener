@@ -54,6 +54,16 @@ public sealed class SubjectRepository
         return command.ExecuteNonQuery() == 1;
     }
 
+    public bool RenameSubject(long subjectId, string name)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE Subjects SET Name = $name WHERE Id = $id;";
+        command.Parameters.AddWithValue("$name", name.Trim());
+        command.Parameters.AddWithValue("$id", subjectId);
+        return command.ExecuteNonQuery() == 1;
+    }
     public bool ArchiveSubject(long subjectId, DateOnly archivedOn)
     {
         using var connection = new SqliteConnection(_connectionString);
@@ -74,3 +84,4 @@ public sealed class SubjectRepository
         return changed;
     }
 }
+

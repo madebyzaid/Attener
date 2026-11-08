@@ -17,9 +17,7 @@ public partial class AttendanceView : UserControl
     [
         new(AttendanceStatus.Present, "Present"),
         new(AttendanceStatus.Absent, "Absent"),
-        new(AttendanceStatus.Cancelled, "Cancelled"),
-        new(AttendanceStatus.NotMarked, "Not Marked"),
-        new(AttendanceStatus.NoClass, "No Class")
+        new(AttendanceStatus.Cancelled, "Cancelled")
     ];
 
     public AttendanceView()
@@ -145,3 +143,5 @@ public partial class AttendanceView : UserControl
         }
     }
 }
+
+

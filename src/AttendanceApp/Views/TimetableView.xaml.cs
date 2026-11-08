@@ -1,6 +1,7 @@
-using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
 using AttendanceApp.Features.Subjects;
 using AttendanceApp.Features.Timetable;
 using AttendanceApp.Infrastructure.Database;
@@ -11,128 +12,107 @@ public partial class TimetableView : UserControl
 {
     private readonly SubjectRepository _subjects = new(DatabaseLocation.GetPath());
     private readonly TimetableRepository _timetable = new(DatabaseLocation.GetPath());
+    private static readonly string[] Days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    private const int StartHour = 8;
+    private const int EndHour = 20;
+    private IReadOnlyList<SubjectSummary> _activeSubjects = [];
+    private Dictionary<(int Day, int Hour), long> _assignments = [];
 
     public TimetableView()
     {
         InitializeComponent();
-        RefreshSubjects();
-        DayCombo.ItemsSource = Enum.GetValues<DayOfWeek>();
-        DayCombo.SelectedItem = DayOfWeek.Monday;
         EffectiveDatePicker.SelectedDate = DateTime.Today;
-        LoadSessions();
+        RefreshData();
     }
 
     public void RefreshData()
     {
-        RefreshSubjects();
-        LoadSessions();
+        _activeSubjects = _subjects.GetSubjects(includeArchived: false);
+        BuildGrid();
     }
 
-    private void RefreshSubjects()
+    private void LoadAssignments()
     {
-        var selectedSubjectId = SubjectCombo.SelectedValue;
-        var subjects = _subjects.GetSubjects(includeArchived: false);
-        SubjectCombo.ItemsSource = subjects;
-        SubjectCombo.IsEnabled = subjects.Count > 0;
-        SubjectEmptyHint.Visibility = subjects.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        if (selectedSubjectId is not null && subjects.Any(subject => subject.Id.Equals(selectedSubjectId)))
-            SubjectCombo.SelectedValue = selectedSubjectId;
+        _assignments = [];
+        if (EffectiveDatePicker.SelectedDate is not DateTime selected) return;
+        var date = DateOnly.FromDateTime(selected);
+        foreach (var session in _timetable.GetWeeklySessions(date))
+        {
+            var start = TimeOnly.Parse(session.StartTime);
+            var end = TimeOnly.Parse(session.EndTime);
+            var first = Math.Max(StartHour, start.Hour);
+            var last = Math.Min(EndHour, (int)Math.Ceiling(end.ToTimeSpan().TotalHours));
+            var mondayIndex = session.DayOfWeek == 0 ? 6 : session.DayOfWeek - 1;
+            for (var hour = first; hour < last; hour++) _assignments[(mondayIndex, hour)] = session.SubjectId;
+        }
     }
 
-    private void LoadSessions()
+    private void BuildGrid()
     {
-        if (EffectiveDatePicker.SelectedDate is not DateTime selectedDate)
+        LoadAssignments();
+        TimetableGrid.Children.Clear(); TimetableGrid.RowDefinitions.Clear(); TimetableGrid.ColumnDefinitions.Clear();
+        TimetableGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
+        for (var hour = StartHour; hour < EndHour; hour++) TimetableGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 78 });
+        TimetableGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(42) });
+        for (var day = 0; day < 7; day++) TimetableGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(62) });
+        AddCell("Day", 0, 0, true);
+        for (var hour = StartHour; hour < EndHour; hour++) AddCell($"{hour:00}:00", hour - StartHour + 1, 0, true);
+        for (var day = 0; day < 7; day++)
         {
-            SessionsList.ItemsSource = Array.Empty<TimetableSessionRow>();
-            EmptyStateText.Visibility = Visibility.Visible;
-            return;
+            AddCell(Days[day], 0, day + 1, true);
+            for (var hour = StartHour; hour < EndHour; hour++)
+            {
+                _assignments.TryGetValue((day, hour), out var id);
+                var name = _activeSubjects.FirstOrDefault(s => s.Id == id)?.Name ?? "＋";
+                var button = new Button { Content = name, Tag = (day, hour), Margin = new Thickness(2), Padding = new Thickness(4), FontSize = 11, Background = id == 0 ? (Brush)FindResource("SurfaceBackgroundBrush") : (Brush)FindResource("AccentBrush"), Foreground = id == 0 ? (Brush)FindResource("SecondaryTextBrush") : Brushes.Black, BorderThickness = new Thickness(0), Cursor = Cursors.Hand, ToolTip = $"{Days[day]} {hour:00}:00–{hour + 1:00}:00" };
+                button.Click += Cell_Click; Grid.SetColumn(button, hour - StartHour + 1); Grid.SetRow(button, day + 1); TimetableGrid.Children.Add(button);
+            }
         }
-
-        var date = DateOnly.FromDateTime(selectedDate);
-        var rows = _timetable.GetWeeklySessions(date)
-            .Select(session => new TimetableSessionRow(
-                session,
-                Enum.IsDefined((DayOfWeek)session.DayOfWeek)
-                    ? ((DayOfWeek)session.DayOfWeek).ToString()
-                    : "Unknown",
-                $"{session.StartTime}–{session.EndTime}",
-                session.EffectiveTo is null
-                    ? $"Effective {session.EffectiveFrom} onward"
-                    : $"Effective {session.EffectiveFrom} to {session.EffectiveTo}"))
-            .ToArray();
-
-        SessionsList.ItemsSource = rows;
-        EmptyStateText.Visibility = rows.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
-        ScheduleHeading.Text = $"Weekly sessions in effect on {selectedDate:dd MMM yyyy}";
     }
 
-    private void SaveSession_Click(object sender, RoutedEventArgs e)
+    private void AddCell(string text, int column, int row, bool header)
     {
-        if (SubjectCombo.SelectedValue is not long subjectId ||
-            DayCombo.SelectedItem is not DayOfWeek day ||
-            EffectiveDatePicker.SelectedDate is not DateTime effectiveDate)
-        {
-            MessageBox.Show("Choose a subject, day, and effective date first.", "Details required",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
+        var block = new TextBlock { Text = text, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.SemiBold, Foreground = header ? (Brush)FindResource("PrimaryTextBrush") : Brushes.White };
+        var border = new Border { Child = block, Background = header ? (Brush)FindResource("SurfaceBackgroundBrush") : Brushes.Transparent, Margin = new Thickness(1) };
+        Grid.SetColumn(border, column); Grid.SetRow(border, row); TimetableGrid.Children.Add(border);
+    }
 
-        if (!TimeOnly.TryParseExact(StartTimeBox.Text.Trim(), "HH:mm", CultureInfo.InvariantCulture,
-                DateTimeStyles.None, out var start) ||
-            !TimeOnly.TryParseExact(EndTimeBox.Text.Trim(), "HH:mm", CultureInfo.InvariantCulture,
-                DateTimeStyles.None, out var end))
+    private void Cell_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: ValueTuple<int, int> cell }) return;
+        var menu = new ContextMenu();
+        var clear = new MenuItem { Header = "Clear hour" }; clear.Click += (_, _) => ChangeCell(cell, null); menu.Items.Add(clear);
+        foreach (var subject in _activeSubjects)
         {
-            MessageBox.Show("Enter class times in 24-hour format, such as 09:00.", "Check the time",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
+            var item = new MenuItem { Header = subject.Name }; var id = subject.Id;
+            item.Click += (_, _) => ChangeCell(cell, id); menu.Items.Add(item);
         }
+        menu.PlacementTarget = (UIElement)sender; menu.IsOpen = true;
+    }
 
-        if (end <= start)
-        {
-            MessageBox.Show("The end time must be later than the start time.", "Check the time",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
+    private void ChangeCell((int Day, int Hour) cell, long? subjectId)
+    {
+        if (EffectiveDatePicker.SelectedDate is not DateTime effective) return;
+        if (subjectId is null) _assignments.Remove(cell); else _assignments[cell] = subjectId.Value;
         try
         {
-            _timetable.SaveWeeklySession(subjectId, (int)day, start, end,
-                DateOnly.FromDateTime(effectiveDate));
-            LoadSessions();
+            var date = DateOnly.FromDateTime(effective);
+            var dayOfWeek = (int)(cell.Day == 6 ? DayOfWeek.Sunday : (DayOfWeek)(cell.Day + 1));
+            var existing = _timetable.GetWeeklySessions(date).Where(s => s.DayOfWeek == dayOfWeek).ToArray();
+            foreach (var existingSubject in existing.Select(s => s.SubjectId).Distinct()) _timetable.RemoveWeeklySession(existingSubject, dayOfWeek, date);
+            var hours = Enumerable.Range(StartHour, EndHour - StartHour).Select(h => (Hour: h, Id: _assignments.GetValueOrDefault((cell.Day, h)))).ToArray();
+            for (var i = 0; i < hours.Length;)
+            {
+                if (hours[i].Id == 0) { i++; continue; }
+                var id = hours[i].Id; var start = hours[i].Hour; var end = start + 1; i++;
+                while (i < hours.Length && hours[i].Id == id) { end++; i++; }
+                _timetable.SaveWeeklySession(id, dayOfWeek, new TimeOnly(start, 0), new TimeOnly(end, 0), date);
+            }
+            BuildGrid();
         }
-        catch (Exception ex) when (ex is Microsoft.Data.Sqlite.SqliteException or InvalidOperationException)
-        {
-            MessageBox.Show($"The timetable could not be saved. {ex.Message}", "Save failed",
-                MessageBoxButton.OK, MessageBoxImage.Error);
-        }
+        catch (Exception ex) { MessageBox.Show($"Could not update this day. {ex.Message}", "Timetable update failed", MessageBoxButton.OK, MessageBoxImage.Error); BuildGrid(); }
     }
 
-    private void RemoveSession_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not Button { Tag: TimetableSessionRow row } ||
-            EffectiveDatePicker.SelectedDate is not DateTime effectiveDate)
-            return;
-
-        var result = MessageBox.Show(
-            $"Remove {row.Session.SubjectName} on {row.DayName} from {effectiveDate:dd MMM yyyy} onward? Earlier timetable history will be preserved.",
-            "Remove weekly session", MessageBoxButton.YesNo, MessageBoxImage.Question);
-        if (result != MessageBoxResult.Yes)
-            return;
-
-        _timetable.RemoveWeeklySession(row.Session.SubjectId, row.Session.DayOfWeek,
-            DateOnly.FromDateTime(effectiveDate));
-        LoadSessions();
-    }
-
-    private void EffectiveDatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (IsLoaded)
-            LoadSessions();
-    }
-
-    private sealed record TimetableSessionRow(
-        WeeklySessionSummary Session,
-        string DayName,
-        string TimeRange,
-        string EffectiveDescription);
+    private void EffectiveDatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e) { if (IsLoaded) BuildGrid(); }
 }
+

@@ -19,6 +19,7 @@ public partial class MainWindow : Window
         CalendarPage.Visibility = page == "Calendar" ? Visibility.Visible : Visibility.Collapsed;
         StatisticsPage.Visibility = page == "Statistics" ? Visibility.Visible : Visibility.Collapsed;
 
+        if (page == "Overview") OverviewPage.RefreshData();
         if (page == "Attendance") AttendancePage.RefreshData();
         if (page == "Timetable") TimetablePage.RefreshData();
         if (page == "Subjects") SubjectsPage.RefreshData();
@@ -26,3 +27,4 @@ public partial class MainWindow : Window
         if (page == "Statistics") StatisticsPage.RefreshData();
     }
 }
+
