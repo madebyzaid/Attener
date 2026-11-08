@@ -1,0 +1,88 @@
+<UserControl x:Class="AttendanceApp.Views.AttendanceView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="Transparent">
+    <UserControl.Resources>
+        <DataTemplate x:Key="AttendanceTemplate">
+            <Border Background="{StaticResource SurfaceBackgroundBrush}" CornerRadius="10"
+                    Padding="18" Margin="0,0,0,10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="175" />
+                        <ColumnDefinition Width="175" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Entry.SubjectName}" FontSize="15" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding ScheduledTime}" FontSize="12"
+                                   Foreground="{StaticResource SecondaryTextBrush}" Margin="0,5,0,0" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="12,0">
+                        <TextBlock Text="Status" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" Margin="2,0,0,5" />
+                        <ComboBox ItemsSource="{Binding DataContext.StatusOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                  DisplayMemberPath="Label" SelectedValuePath="Status"
+                                  SelectedValue="{Binding SelectedStatus, Mode=TwoWay}"
+                                  Height="38" IsEnabled="{Binding CanEdit}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Margin="12,0">
+                        <TextBlock Text="Actual duration (hours)" FontSize="11"
+                                   Foreground="{StaticResource SecondaryTextBrush}" Margin="2,0,0,5" />
+                        <TextBox Text="{Binding ActualDurationHours, UpdateSourceTrigger=PropertyChanged}"
+                                 Height="38" Padding="9" VerticalContentAlignment="Center"
+                                 IsEnabled="{Binding CanEdit}" />
+                    </StackPanel>
+                    <Button Grid.Column="3" Content="Save" Tag="{Binding}"
+                            Click="SaveAttendance_Click" Padding="17,0" Margin="10,14,0,0"
+                            Height="38" Background="{StaticResource AccentBrush}"
+                            Foreground="#111318" FontWeight="SemiBold"
+                            BorderThickness="0" Cursor="Hand" IsEnabled="{Binding CanEdit}" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel>
+            <TextBlock Text="Attendance" FontSize="28" FontWeight="SemiBold" />
+            <TextBlock Text="Mark each scheduled class once for the selected date."
+                       FontSize="14" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,7,0,0" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,22,0,0">
+            <Button x:Name="ByDateButton" Content="By date" Click="ShowByDate_Click"
+                    Padding="13,7" Margin="0,0,8,0" BorderThickness="0" Cursor="Hand" />
+            <Button x:Name="PendingButton" Content="Pending" Click="ShowPending_Click"
+                    Padding="13,7" BorderThickness="0" Cursor="Hand" />
+        </StackPanel>
+
+        <Border x:Name="DateControls" Grid.Row="2" Background="{StaticResource SurfaceBackgroundBrush}"
+                CornerRadius="12" Padding="16" Margin="0,12,0,0" HorizontalAlignment="Left">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="Date" VerticalAlignment="Center" Margin="0,0,12,0"
+                           Foreground="{StaticResource SecondaryTextBrush}" />
+                <DatePicker x:Name="AttendanceDatePicker" Width="190" Height="40"
+                            SelectedDateChanged="AttendanceDatePicker_SelectedDateChanged" />
+            </StackPanel>
+        </Border>
+        <StackPanel x:Name="PendingHeader" Grid.Row="2" Orientation="Horizontal"
+                    Margin="0,18,0,0" Visibility="Collapsed">
+            <TextBlock Text="Unmarked classes up to today" FontSize="15" FontWeight="SemiBold" />
+        </StackPanel>
+
+        <Grid Grid.Row="3" Margin="0,18,0,0">
+            <ItemsControl x:Name="AttendanceList" ItemTemplate="{StaticResource AttendanceTemplate}" />
+            <TextBlock x:Name="EmptyStateText" Text="Choose a semester start date on Overview to generate attendance records."
+                       Foreground="{StaticResource SecondaryTextBrush}" FontSize="14"
+                       HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,40,0,0"
+                       TextAlignment="Center" TextWrapping="Wrap" />
+        </Grid>
+    </Grid>
+</UserControl>
