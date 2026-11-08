@@ -110,7 +110,8 @@ public partial class CalendarView : UserControl
         _ => "Scheduled"
     };
 
-    private sealed record CalendarSubjectFilter(long? SubjectId, string Label);
+    private sealed record CalendarSubjectFilter(long? SubjectId, string Label) { public override string ToString() => Label; }
     private sealed record CalendarSessionRow(
         string SubjectName, string TimeRange, string StatusText, string StatusLabel);
 }
+
