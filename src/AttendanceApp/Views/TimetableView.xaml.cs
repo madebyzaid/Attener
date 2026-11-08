@@ -15,7 +15,7 @@ public partial class TimetableView : UserControl
     public TimetableView()
     {
         InitializeComponent();
-        SubjectCombo.ItemsSource = _subjects.GetSubjects(includeArchived: false);
+        RefreshSubjects();
         DayCombo.ItemsSource = Enum.GetValues<DayOfWeek>();
         DayCombo.SelectedItem = DayOfWeek.Monday;
         EffectiveDatePicker.SelectedDate = DateTime.Today;
@@ -24,12 +24,19 @@ public partial class TimetableView : UserControl
 
     public void RefreshData()
     {
+        RefreshSubjects();
+        LoadSessions();
+    }
+
+    private void RefreshSubjects()
+    {
         var selectedSubjectId = SubjectCombo.SelectedValue;
         var subjects = _subjects.GetSubjects(includeArchived: false);
         SubjectCombo.ItemsSource = subjects;
+        SubjectCombo.IsEnabled = subjects.Count > 0;
+        SubjectEmptyHint.Visibility = subjects.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         if (selectedSubjectId is not null && subjects.Any(subject => subject.Id.Equals(selectedSubjectId)))
             SubjectCombo.SelectedValue = selectedSubjectId;
-        LoadSessions();
     }
 
     private void LoadSessions()
@@ -104,9 +111,7 @@ public partial class TimetableView : UserControl
     {
         if (sender is not Button { Tag: TimetableSessionRow row } ||
             EffectiveDatePicker.SelectedDate is not DateTime effectiveDate)
-        {
             return;
-        }
 
         var result = MessageBox.Show(
             $"Remove {row.Session.SubjectName} on {row.DayName} from {effectiveDate:dd MMM yyyy} onward? Earlier timetable history will be preserved.",

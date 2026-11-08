@@ -16,10 +16,10 @@
                     <TextBlock Text="{Binding DayName}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
                     <StackPanel Grid.Column="1">
                         <TextBlock Text="{Binding Session.SubjectName}" FontSize="14" FontWeight="SemiBold" />
-                        <TextBlock Text="{Binding EffectiveDescription}" FontSize="11"
+                        <TextBlock Text="{Binding EffectiveDescription}" FontSize="12"
                                    Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,0" />
                     </StackPanel>
-                    <TextBlock Grid.Column="2" Text="{Binding TimeRange}" FontSize="13"
+                    <TextBlock Grid.Column="2" Text="{Binding TimeRange}" FontSize="14"
                                Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center" />
                     <Button Grid.Column="3" Content="Remove from date" Tag="{Binding}"
                             Click="RemoveSession_Click" Padding="12,6"
@@ -61,26 +61,33 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="Subject" FontSize="11"
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Subject" FontSize="13"
                            Foreground="{StaticResource SecondaryTextBrush}" Margin="2,0,0,7" />
-                <TextBlock Grid.Row="0" Grid.Column="1" Text="Day" FontSize="11"
+                <TextBlock Grid.Row="0" Grid.Column="1" Text="Day" FontSize="13"
                            Foreground="{StaticResource SecondaryTextBrush}" Margin="2,0,0,7" />
-                <TextBlock Grid.Row="0" Grid.Column="2" Text="Starts" FontSize="11"
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="Starts" FontSize="13"
                            Foreground="{StaticResource SecondaryTextBrush}" Margin="2,0,0,7" />
-                <TextBlock Grid.Row="0" Grid.Column="3" Text="Ends" FontSize="11"
+                <TextBlock Grid.Row="0" Grid.Column="3" Text="Ends" FontSize="13"
                            Foreground="{StaticResource SecondaryTextBrush}" Margin="2,0,0,7" />
-                <TextBlock Grid.Row="0" Grid.Column="4" Text="Effective from" FontSize="11"
+                <TextBlock Grid.Row="0" Grid.Column="4" Text="Effective from" FontSize="13"
                            Foreground="{StaticResource SecondaryTextBrush}" Margin="2,0,0,7" />
 
-                <ComboBox x:Name="SubjectCombo" Grid.Row="1" Grid.Column="0" Height="40"
-                          DisplayMemberPath="Name" SelectedValuePath="Id" Margin="0,0,10,0" />
-                <ComboBox x:Name="DayCombo" Grid.Row="1" Grid.Column="1" Height="40"
+                <Grid Grid.Row="1" Grid.Column="0" Margin="0,0,10,0">
+                    <ComboBox x:Name="SubjectCombo" Height="42" IsEditable="False"
+                              DisplayMemberPath="Name" SelectedValuePath="Id"
+                              ToolTip="Choose an active subject. Add subjects on the Subjects page." />
+                    <TextBlock x:Name="SubjectEmptyHint" Text="No subjects yet — add one on Subjects"
+                               FontSize="12" Foreground="{StaticResource SecondaryTextBrush}"
+                               Margin="12,0,34,0" VerticalAlignment="Center"
+                               IsHitTestVisible="False" Visibility="Collapsed" />
+                </Grid>
+                <ComboBox x:Name="DayCombo" Grid.Row="1" Grid.Column="1" Height="42"
                           Margin="0,0,10,0" />
-                <TextBox x:Name="StartTimeBox" Grid.Row="1" Grid.Column="2" Height="40"
+                <TextBox x:Name="StartTimeBox" Grid.Row="1" Grid.Column="2" Height="42"
                          Text="09:00" Padding="9" VerticalContentAlignment="Center" Margin="0,0,10,0" />
-                <TextBox x:Name="EndTimeBox" Grid.Row="1" Grid.Column="3" Height="40"
+                <TextBox x:Name="EndTimeBox" Grid.Row="1" Grid.Column="3" Height="42"
                          Text="10:00" Padding="9" VerticalContentAlignment="Center" Margin="0,0,10,0" />
-                <DatePicker x:Name="EffectiveDatePicker" Grid.Row="1" Grid.Column="4" Height="40"
+                <DatePicker x:Name="EffectiveDatePicker" Grid.Row="1" Grid.Column="4" Height="42"
                             SelectedDateChanged="EffectiveDatePicker_SelectedDateChanged" Margin="0,0,10,0" />
                 <Button Grid.Row="1" Grid.Column="5" Content="Save session" Padding="15,0"
                         Background="{StaticResource AccentBrush}" Foreground="#111318"
