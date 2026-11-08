@@ -17,6 +17,8 @@ public partial class SubjectsView : UserControl
         LoadSubjects();
     }
 
+    public void RefreshData() => LoadSubjects();
+
     private void LoadSubjects()
     {
         var subjects = _repository.GetSubjects(_showArchived);

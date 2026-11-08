@@ -20,6 +20,8 @@ public partial class MainWindow : Window
         StatisticsPage.Visibility = page == "Statistics" ? Visibility.Visible : Visibility.Collapsed;
 
         if (page == "Attendance") AttendancePage.RefreshData();
+        if (page == "Timetable") TimetablePage.RefreshData();
+        if (page == "Subjects") SubjectsPage.RefreshData();
         if (page == "Calendar") CalendarPage.RefreshData();
         if (page == "Statistics") StatisticsPage.RefreshData();
     }

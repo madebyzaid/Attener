@@ -22,6 +22,16 @@ public partial class TimetableView : UserControl
         LoadSessions();
     }
 
+    public void RefreshData()
+    {
+        var selectedSubjectId = SubjectCombo.SelectedValue;
+        var subjects = _subjects.GetSubjects(includeArchived: false);
+        SubjectCombo.ItemsSource = subjects;
+        if (selectedSubjectId is not null && subjects.Any(subject => subject.Id.Equals(selectedSubjectId)))
+            SubjectCombo.SelectedValue = selectedSubjectId;
+        LoadSessions();
+    }
+
     private void LoadSessions()
     {
         if (EffectiveDatePicker.SelectedDate is not DateTime selectedDate)

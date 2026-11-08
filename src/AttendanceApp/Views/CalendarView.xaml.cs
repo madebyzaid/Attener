@@ -18,18 +18,30 @@ public partial class CalendarView : UserControl
     public CalendarView()
     {
         InitializeComponent();
+        LoadSubjectFilters(null);
+        MonthCalendar.SelectedDate = DateTime.Today;
+        LoadSelectedDate();
+    }
+
+    public void RefreshData()
+    {
+        var selectedSubjectId = (SubjectFilter.SelectedItem as CalendarSubjectFilter)?.SubjectId;
+        LoadSubjectFilters(selectedSubjectId);
+        LoadSelectedDate();
+    }
+
+    private void LoadSubjectFilters(long? selectedSubjectId)
+    {
         var filters = new List<CalendarSubjectFilter> { new(null, "All subjects") };
         filters.AddRange(_subjects.GetSubjects(includeArchived: false)
             .Select(subject => new CalendarSubjectFilter(subject.Id, subject.Name)));
         filters.AddRange(_subjects.GetSubjects(includeArchived: true)
             .Select(subject => new CalendarSubjectFilter(subject.Id, $"{subject.Name} · Archived")));
         SubjectFilter.ItemsSource = filters;
-        SubjectFilter.SelectedIndex = 0;
-        MonthCalendar.SelectedDate = DateTime.Today;
-        LoadSelectedDate();
+        SubjectFilter.SelectedValue = selectedSubjectId;
+        if (selectedSubjectId is null)
+            SubjectFilter.SelectedIndex = 0;
     }
-
-    public void RefreshData() => LoadSelectedDate();
 
     private void MonthCalendar_SelectedDatesChanged(object sender, SelectionChangedEventArgs e)
     {
