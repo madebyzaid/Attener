@@ -21,13 +21,17 @@ A single-user, offline-first Windows desktop app for tracking class attendance b
 
 ## Local data
 
-The database is stored at `%LOCALAPPDATA%\AttendanceApp\attendance.db` so existing local data is preserved.
+The database is stored at `%LOCALAPPDATA%\Attener\attendance.db`.
 
 ## Build
 
-Open `src/AttendanceApp/AttendanceApp.csproj` in Visual Studio or build it with the .NET 10 SDK.
+Open `src/Attener/Attener.csproj` in Visual Studio or build it with the .NET 10 SDK.
 
 ## Publish a Windows executable
 
-Use the `Windows-x64` publish profile in `src/AttendanceApp/Properties/PublishProfiles`. It creates `Attener.exe`, a self-contained single-file Windows x64 executable in `src/AttendanceApp/bin/Release/net10.0-windows/win-x64/publish/`.
+Use the `Windows-x64` publish profile in `src/Attener/Properties/PublishProfiles`. It creates `Attener.exe`, a self-contained single-file Windows x64 executable in `src/Attener/bin/Release/net10.0-windows/win-x64/publish/`.
+
+
+
+
 
