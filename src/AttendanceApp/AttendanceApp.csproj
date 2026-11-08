@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>AttendanceApp</RootNamespace>
-    <AssemblyName>AttendanceApp</AssemblyName>
+    <AssemblyName>Attener</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,3 +14,4 @@
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
   </ItemGroup>
 </Project>
+
