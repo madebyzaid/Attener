@@ -1,4 +1,4 @@
-# Attendance App
+# Attener
 
 A single-user, offline-first Windows desktop app for tracking class attendance by scheduled hours.
 
