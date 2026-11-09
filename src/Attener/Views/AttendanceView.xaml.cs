@@ -61,12 +61,12 @@ public partial class AttendanceView : UserControl
         {
             EmptyStateText.Text = _showPending
                 ? semesterStart is null
-                    ? "Choose a semester start date on Overview to generate attendance records."
+                    ? "Choose a semester start date in Settings to generate attendance records."
                     : "No unmarked classes remain for today or earlier."
                 : !canEdit
                     ? "Future classes appear in Timetable and Calendar; they are not pending attendance."
                     : semesterStart is null
-                        ? "Choose a semester start date on Overview to generate attendance records."
+                        ? "Choose a semester start date in Settings to generate attendance records."
                         : date < semesterStart.Value
                             ? $"This date is before the selected semester start ({semesterStart:dd MMM yyyy})."
                             : "No classes are scheduled on this date.";

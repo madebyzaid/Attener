@@ -160,7 +160,7 @@ public sealed class AttendanceRepository
                 ScheduledDurationMinutes, ActualDurationMinutes
             )
             VALUES ($subjectId, $date, $status, $start, $end, $scheduledMinutes, $actualMinutes)
-            ON CONFLICT (SubjectId, AttendanceDate) DO UPDATE SET
+            ON CONFLICT (SubjectId, AttendanceDate, ScheduledStart) DO UPDATE SET
                 Status = excluded.Status,
                 ScheduledStart = excluded.ScheduledStart,
                 ScheduledEnd = excluded.ScheduledEnd,

@@ -5,6 +5,7 @@ namespace Attener.Infrastructure.Database;
 
 public sealed class DatabaseInitializer
 {
+    private const int SchemaVersion = 4;
     private readonly string _databasePath;
 
     public DatabaseInitializer(string databasePath)
@@ -69,7 +70,7 @@ public sealed class DatabaseInitializer
                     ActualDurationMinutes   INTEGER CHECK (
                                                 ActualDurationMinutes IS NULL OR ActualDurationMinutes >= 0
                                             ),
-                    UNIQUE (SubjectId, AttendanceDate),
+                    UNIQUE (SubjectId, AttendanceDate, ScheduledStart),
                     CHECK (ScheduledEnd IS NULL OR ScheduledStart IS NOT NULL)
                 );
 
@@ -88,9 +89,61 @@ public sealed class DatabaseInitializer
         EnsureColumn(connection, "Subjects", "ArchivedOn", "TEXT");
         EnsureColumn(connection, "WeeklySessions", "EndedByEndDate", "INTEGER NOT NULL DEFAULT 0");
 
+        MigrateAttendanceUniqueness(connection);
+
         using var versionCommand = connection.CreateCommand();
-        versionCommand.CommandText = "PRAGMA user_version = 3;";
+        versionCommand.CommandText = $"PRAGMA user_version = {SchemaVersion};";
         versionCommand.ExecuteNonQuery();
+    }
+
+    // Version 4: a subject can now have several classes on the same day, so an attendance record is
+    // unique per subject + date + start time (it used to be per subject + date only).
+    // SQLite cannot change a UNIQUE rule in place, so the table is rebuilt and every row is copied
+    // across unchanged. It all happens in one transaction: either it fully works or nothing changes.
+    private static void MigrateAttendanceUniqueness(SqliteConnection connection)
+    {
+        using var versionCommand = connection.CreateCommand();
+        versionCommand.CommandText = "PRAGMA user_version;";
+        var version = Convert.ToInt32(versionCommand.ExecuteScalar());
+        if (version >= 4)
+            return;
+
+        using var transaction = connection.BeginTransaction();
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            CREATE TABLE AttendanceRecords_New (
+                Id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+                SubjectId               INTEGER NOT NULL REFERENCES Subjects(Id),
+                AttendanceDate          TEXT NOT NULL,
+                Status                  TEXT NOT NULL CHECK (Status IN (
+                                            'Present', 'Absent', 'Cancelled', 'Not Marked', 'No Class'
+                                        )),
+                ScheduledStart          TEXT,
+                ScheduledEnd            TEXT,
+                ScheduledDurationMinutes INTEGER NOT NULL DEFAULT 0 CHECK (ScheduledDurationMinutes >= 0),
+                ActualDurationMinutes   INTEGER CHECK (
+                                            ActualDurationMinutes IS NULL OR ActualDurationMinutes >= 0
+                                        ),
+                UNIQUE (SubjectId, AttendanceDate, ScheduledStart),
+                CHECK (ScheduledEnd IS NULL OR ScheduledStart IS NOT NULL)
+            );
+
+            INSERT INTO AttendanceRecords_New
+                (Id, SubjectId, AttendanceDate, Status, ScheduledStart, ScheduledEnd,
+                 ScheduledDurationMinutes, ActualDurationMinutes)
+            SELECT Id, SubjectId, AttendanceDate, Status, ScheduledStart, ScheduledEnd,
+                   ScheduledDurationMinutes, ActualDurationMinutes
+            FROM AttendanceRecords;
+
+            DROP TABLE AttendanceRecords;
+            ALTER TABLE AttendanceRecords_New RENAME TO AttendanceRecords;
+
+            CREATE INDEX IF NOT EXISTS IX_AttendanceRecords_Date
+                ON AttendanceRecords (AttendanceDate);
+            """;
+        command.ExecuteNonQuery();
+        transaction.Commit();
     }
 
     private static void EnsureColumn(SqliteConnection connection, string table, string column, string definition)

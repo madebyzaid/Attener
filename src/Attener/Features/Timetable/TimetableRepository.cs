@@ -124,16 +124,21 @@ public sealed class TimetableRepository
         using (var current = connection.CreateCommand())
         {
             current.Transaction = transaction;
+            // A subject can have several classes on one day, so a class is identified by
+            // subject + weekday + start time. (Without the start time, saving a second class of the
+            // same subject would overwrite the first one.)
             current.CommandText = """
                 SELECT Id, EffectiveFrom, EffectiveTo, EndedByEndDate
                 FROM WeeklySessions
                 WHERE SubjectId = $subjectId AND DayOfWeek = $dayOfWeek
+                  AND StartTime = $start
                   AND EffectiveFrom <= $date
                   AND (EffectiveTo IS NULL OR EffectiveTo > $date)
                 LIMIT 1;
                 """;
             current.Parameters.AddWithValue("$subjectId", subjectId);
             current.Parameters.AddWithValue("$dayOfWeek", dayOfWeek);
+            current.Parameters.AddWithValue("$start", FormatTime(startTime));
             current.Parameters.AddWithValue("$date", effectiveDate);
             using var reader = current.ExecuteReader();
             if (reader.Read())
@@ -201,6 +206,10 @@ public sealed class TimetableRepository
         transaction.Commit();
     }
 
+    // Removes ALL of this subject's classes on this weekday from effectiveFrom onward (a subject can
+    // have several classes in one day). Classes that start exactly on effectiveFrom are deleted;
+    // classes that started earlier are closed so they stop on effectiveFrom.
+    // Returns true if anything changed.
     public bool RemoveWeeklySession(long subjectId, int dayOfWeek, DateOnly effectiveFrom)
     {
         var effectiveDate = FormatDate(effectiveFrom);
@@ -208,53 +217,34 @@ public sealed class TimetableRepository
         connection.Open();
         using var transaction = connection.BeginTransaction();
 
-        long? currentId = null;
-        string? currentStart = null;
-        using (var current = connection.CreateCommand())
-        {
-            current.Transaction = transaction;
-            current.CommandText = """
-                SELECT Id, EffectiveFrom
-                FROM WeeklySessions
-                WHERE SubjectId = $subjectId AND DayOfWeek = $dayOfWeek
-                  AND EffectiveFrom <= $date
-                  AND (EffectiveTo IS NULL OR EffectiveTo > $date)
-                LIMIT 1;
-                """;
-            current.Parameters.AddWithValue("$subjectId", subjectId);
-            current.Parameters.AddWithValue("$dayOfWeek", dayOfWeek);
-            current.Parameters.AddWithValue("$date", effectiveDate);
-            using var reader = current.ExecuteReader();
-            if (reader.Read())
-            {
-                currentId = reader.GetInt64(0);
-                currentStart = reader.GetString(1);
-            }
-        }
+        using var delete = connection.CreateCommand();
+        delete.Transaction = transaction;
+        delete.CommandText = """
+            DELETE FROM WeeklySessions
+            WHERE SubjectId = $subjectId AND DayOfWeek = $dayOfWeek
+              AND EffectiveFrom = $date;
+            """;
+        delete.Parameters.AddWithValue("$subjectId", subjectId);
+        delete.Parameters.AddWithValue("$dayOfWeek", dayOfWeek);
+        delete.Parameters.AddWithValue("$date", effectiveDate);
+        var deleted = delete.ExecuteNonQuery();
 
-        if (!currentId.HasValue)
-        {
-            transaction.Rollback();
-            return false;
-        }
+        using var close = connection.CreateCommand();
+        close.Transaction = transaction;
+        close.CommandText = """
+            UPDATE WeeklySessions
+            SET EffectiveTo = $date, EndedByEndDate = 0
+            WHERE SubjectId = $subjectId AND DayOfWeek = $dayOfWeek
+              AND EffectiveFrom < $date
+              AND (EffectiveTo IS NULL OR EffectiveTo > $date);
+            """;
+        close.Parameters.AddWithValue("$subjectId", subjectId);
+        close.Parameters.AddWithValue("$dayOfWeek", dayOfWeek);
+        close.Parameters.AddWithValue("$date", effectiveDate);
+        var closed = close.ExecuteNonQuery();
 
-        using var change = connection.CreateCommand();
-        change.Transaction = transaction;
-        if (currentStart == effectiveDate)
-        {
-            change.CommandText = "DELETE FROM WeeklySessions WHERE Id = $id;";
-            change.Parameters.AddWithValue("$id", currentId.Value);
-        }
-        else
-        {
-            change.CommandText = "UPDATE WeeklySessions SET EffectiveTo = $date, EndedByEndDate = 0 WHERE Id = $id;";
-            change.Parameters.AddWithValue("$date", effectiveDate);
-            change.Parameters.AddWithValue("$id", currentId.Value);
-        }
-
-        var changed = change.ExecuteNonQuery() == 1;
         transaction.Commit();
-        return changed;
+        return deleted + closed > 0;
     }
 
     // The earliest "ended by an end date" stop among the classes running on this date (exclusive end,

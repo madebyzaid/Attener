@@ -16,8 +16,9 @@ public sealed class CalendarStatusRepository
         }.ToString();
     }
 
-    // Every saved attendance status for one subject, keyed by date.
+    // One status per date for one subject, used to colour the calendar day.
     // Values are the status words stored in the database: "Present", "Absent", "Cancelled", "Not Marked", "No Class".
+    // If the subject has several classes on one day, the most important status wins (see Rank).
     public Dictionary<DateTime, string> GetStatusesForSubject(long subjectId)
     {
         using var connection = new SqliteConnection(_connectionString);
@@ -35,8 +36,20 @@ public sealed class CalendarStatusRepository
         while (reader.Read())
         {
             var date = DateTime.ParseExact(reader.GetString(0), "yyyy-MM-dd", CultureInfo.InvariantCulture);
-            statuses[date] = reader.GetString(1);
+            var status = reader.GetString(1);
+            if (!statuses.TryGetValue(date, out var existing) || Rank(status) < Rank(existing))
+                statuses[date] = status;
         }
         return statuses;
     }
+
+    // Lower number = wins the day's colour.
+    private static int Rank(string status) => status switch
+    {
+        "Absent" => 0,
+        "Not Marked" => 1,
+        "Present" => 2,
+        "Cancelled" => 3,
+        _ => 4
+    };
 }

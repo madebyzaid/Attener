@@ -123,7 +123,7 @@
 
         <Grid Grid.Row="3" Margin="0,18,0,0">
             <ItemsControl x:Name="AttendanceList" ItemTemplate="{StaticResource AttendanceTemplate}" />
-            <TextBlock x:Name="EmptyStateText" Text="Choose a semester start date on Overview to generate attendance records."
+            <TextBlock x:Name="EmptyStateText" Text="Choose a semester start date in Settings to generate attendance records."
                        Foreground="{StaticResource SecondaryTextBrush}" FontSize="14"
                        HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,40,0,0"
                        TextAlignment="Center" TextWrapping="Wrap" />

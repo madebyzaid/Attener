@@ -6,8 +6,8 @@
     <UserControl.Resources>
         <!-- Same colours as the Attendance page buttons. -->
         <SolidColorBrush x:Key="PresentDayBrush" Color="#5BD68A" />
-        <SolidColorBrush x:Key="AbsentDayBrush" Color="#F2768A" />
-        <SolidColorBrush x:Key="CancelledDayBrush" Color="#5AB0FF" />
+        <SolidColorBrush x:Key="AbsentDayBrush" Color="#de546b" />
+        <SolidColorBrush x:Key="CancelledDayBrush" Color="#a25af0" />
 
         <!-- Turns a day's date + the calendar's Tag (date -> status) into a status word. -->
         <local:DayStatusConverter x:Key="DayStatusConverter" />

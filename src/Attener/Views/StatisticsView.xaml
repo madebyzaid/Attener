@@ -85,7 +85,7 @@
 
         <Grid Grid.Row="3">
             <ItemsControl x:Name="SubjectStatsList" ItemTemplate="{StaticResource SubjectStatTemplate}" />
-            <TextBlock x:Name="EmptyStateText" Text="Choose a semester start date on Overview to view statistics."
+            <TextBlock x:Name="EmptyStateText" Text="Choose a semester start date in Settings to view statistics."
                        Foreground="{StaticResource SecondaryTextBrush}" FontSize="14"
                        HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,35,0,0"
                        TextAlignment="Center" TextWrapping="Wrap" />

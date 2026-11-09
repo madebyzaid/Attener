@@ -86,8 +86,13 @@ public partial class CalendarView : UserControl
             _attendance.GenerateMissingBetween(date, date);
 
         var selectedSubject = (SubjectFilter.SelectedItem as CalendarSubjectFilter)?.SubjectId;
-        var stored = _attendance.GetAttendanceForDate(date, allowUnmarked: true);
-        var storedBySubject = stored.ToDictionary(entry => entry.SubjectId);
+
+        // A subject can have several classes on one day, so saved records are matched to
+        // timetable classes by subject + start time (not by subject alone).
+        var storedByClass = new Dictionary<(long SubjectId, string? Start), AttendanceEntry>();
+        foreach (var entry in _attendance.GetAttendanceForDate(date, allowUnmarked: true))
+            storedByClass[(entry.SubjectId, entry.ScheduledStart)] = entry;
+
         var rows = new List<CalendarSessionRow>();
         var dayOfWeek = (int)selectedDate.DayOfWeek;
 
@@ -95,16 +100,17 @@ public partial class CalendarView : UserControl
                      .Where(item => item.DayOfWeek == dayOfWeek &&
                                     (selectedSubject is null || item.SubjectId == selectedSubject)))
         {
-            storedBySubject.TryGetValue(session.SubjectId, out var record);
+            var key = (session.SubjectId, (string?)session.StartTime);
+            storedByClass.TryGetValue(key, out var record);
             rows.Add(new CalendarSessionRow(
                 session.SubjectName,
                 $"{session.StartTime}–{session.EndTime}",
                 record is null ? "Scheduled class" : StatusLabel(record.Status),
                 record is null ? "Scheduled" : StatusLabel(record.Status)));
-            storedBySubject.Remove(session.SubjectId);
+            storedByClass.Remove(key);
         }
 
-        foreach (var record in storedBySubject.Values.Where(record =>
+        foreach (var record in storedByClass.Values.Where(record =>
                      selectedSubject is null || record.SubjectId == selectedSubject))
         {
             rows.Add(new CalendarSessionRow(
