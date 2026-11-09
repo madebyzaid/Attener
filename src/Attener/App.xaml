@@ -25,83 +25,11 @@
             <Setter Property="CaretBrush" Value="{StaticResource PrimaryTextBrush}" />
         </Style>
 
-        <!-- ===== Date picker (text box + calendar icon in one rounded box) ===== -->
-        <Style TargetType="DatePickerTextBox">
-            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="CaretBrush" Value="{StaticResource PrimaryTextBrush}" />
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="Padding" Value="10,0" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="DatePickerTextBox">
-                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
-                            <ScrollViewer x:Name="PART_ContentHost" Focusable="False" VerticalAlignment="Center" />
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <ControlTemplate x:Key="DatePickerDropDownButtonTemplate" TargetType="Button">
-            <Border x:Name="Chrome" Background="Transparent" CornerRadius="0,5,5,0">
-                <Path Data="M3,4 L15,4 L15,16 L3,16 Z M3,8 L15,8 M6,2 L6,5 M12,2 L12,5"
-                      Stroke="{StaticResource SecondaryTextBrush}" StrokeThickness="1.4"
-                      StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-                      Width="18" Height="18" Stretch="None"
-                      HorizontalAlignment="Center" VerticalAlignment="Center" />
-            </Border>
-            <ControlTemplate.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter TargetName="Chrome" Property="Background" Value="#343B49" />
-                </Trigger>
-            </ControlTemplate.Triggers>
-        </ControlTemplate>
-
-        <Style TargetType="DatePicker">
-            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
-            <Setter Property="Background" Value="{StaticResource SurfaceBackgroundBrush}" />
-            <Setter Property="BorderBrush" Value="#454B58" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="FontFamily" Value="Segoe UI" />
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="DatePicker">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6">
-                            <Grid x:Name="PART_Root">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <DatePickerTextBox x:Name="PART_TextBox" Grid.Column="0"
-                                                   Foreground="{TemplateBinding Foreground}"
-                                                   Focusable="{TemplateBinding Focusable}" />
-                                <Button x:Name="PART_Button" Grid.Column="1" Width="36" Focusable="False" Cursor="Hand"
-                                        Template="{StaticResource DatePickerDropDownButtonTemplate}" />
-                                <Popup x:Name="PART_Popup" AllowsTransparency="True" Placement="Bottom"
-                                       PlacementTarget="{Binding ElementName=PART_Root}"
-                                       StaysOpen="False" VerticalOffset="4" />
-                            </Grid>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- ===== Dark calendar (used by the Calendar page and every date picker popup) ===== -->
-        <Style TargetType="Calendar">
-            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
-            <Setter Property="Background" Value="{StaticResource SurfaceBackgroundBrush}" />
-            <Setter Property="BorderBrush" Value="#454B58" />
-            <Setter Property="BorderThickness" Value="1" />
-        </Style>
-
-        <Style TargetType="CalendarItem">
+        <!-- ===== Dark calendar =====
+             These styles have keys and are wired together through DarkCalendarStyle.
+             A DatePicker's popup calendar is created in code and ignores implicit styles,
+             so each DatePicker points at DarkCalendarStyle through CalendarStyle. -->
+        <Style x:Key="DarkCalendarItemStyle" TargetType="CalendarItem">
             <Setter Property="OverridesDefaultStyle" Value="True" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -220,7 +148,7 @@
             </Setter>
         </Style>
 
-        <Style TargetType="CalendarDayButton">
+        <Style x:Key="DarkCalendarDayButtonStyle" TargetType="CalendarDayButton">
             <Setter Property="OverridesDefaultStyle" Value="True" />
             <Setter Property="MinWidth" Value="34" />
             <Setter Property="MinHeight" Value="30" />
@@ -262,7 +190,7 @@
             </Setter>
         </Style>
 
-        <Style TargetType="CalendarButton">
+        <Style x:Key="DarkCalendarButtonStyle" TargetType="CalendarButton">
             <Setter Property="OverridesDefaultStyle" Value="True" />
             <Setter Property="MinWidth" Value="56" />
             <Setter Property="MinHeight" Value="44" />
@@ -293,6 +221,88 @@
                                 <Setter Property="Foreground" Value="#111318" />
                             </Trigger>
                         </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DarkCalendarStyle" TargetType="Calendar">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+            <Setter Property="Background" Value="{StaticResource SurfaceBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="#454B58" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CalendarItemStyle" Value="{StaticResource DarkCalendarItemStyle}" />
+            <Setter Property="CalendarDayButtonStyle" Value="{StaticResource DarkCalendarDayButtonStyle}" />
+            <Setter Property="CalendarButtonStyle" Value="{StaticResource DarkCalendarButtonStyle}" />
+        </Style>
+
+        <!-- Also applies to the calendar declared in XAML on the Calendar page -->
+        <Style TargetType="Calendar" BasedOn="{StaticResource DarkCalendarStyle}" />
+
+        <!-- ===== Date picker (text box + calendar icon in one rounded box) ===== -->
+        <Style TargetType="DatePickerTextBox">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CaretBrush" Value="{StaticResource PrimaryTextBrush}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DatePickerTextBox">
+                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ScrollViewer x:Name="PART_ContentHost" Focusable="False" VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <ControlTemplate x:Key="DatePickerDropDownButtonTemplate" TargetType="Button">
+            <Border x:Name="Chrome" Background="Transparent" CornerRadius="0,5,5,0">
+                <Path Data="M3,4 L15,4 L15,16 L3,16 Z M3,8 L15,8 M6,2 L6,5 M12,2 L12,5"
+                      Stroke="{StaticResource SecondaryTextBrush}" StrokeThickness="1.4"
+                      StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                      Width="18" Height="18" Stretch="None"
+                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Chrome" Property="Background" Value="#343B49" />
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <Style TargetType="DatePicker">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+            <Setter Property="Background" Value="{StaticResource SurfaceBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="#454B58" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="CalendarStyle" Value="{StaticResource DarkCalendarStyle}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DatePicker">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <Grid x:Name="PART_Root">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <DatePickerTextBox x:Name="PART_TextBox" Grid.Column="0"
+                                                   Foreground="{TemplateBinding Foreground}"
+                                                   Focusable="{TemplateBinding Focusable}" />
+                                <Button x:Name="PART_Button" Grid.Column="1" Width="36" Focusable="False" Cursor="Hand"
+                                        Template="{StaticResource DatePickerDropDownButtonTemplate}" />
+                                <Popup x:Name="PART_Popup" AllowsTransparency="True" Placement="Bottom"
+                                       PlacementTarget="{Binding ElementName=PART_Root}"
+                                       StaysOpen="False" VerticalOffset="4" />
+                            </Grid>
+                        </Border>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>

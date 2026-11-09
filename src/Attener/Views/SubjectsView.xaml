@@ -3,23 +3,46 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="Transparent">
     <UserControl.Resources>
+        <!-- Rounded name box, based on the app's TextBox style. Accent outline while typing. -->
+        <Style x:Key="RoundedTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Box" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="10">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"
+                                          VerticalAlignment="Center" Focusable="False" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <DataTemplate x:Key="SubjectTemplate">
-            <Border Background="{StaticResource SurfaceBackgroundBrush}" CornerRadius="10"
-                    Padding="16,13" Margin="0,0,0,9">
+            <Border Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="#2B303B" BorderThickness="1"
+                    CornerRadius="12" Padding="16,13" Margin="0,0,0,9">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                                        <TextBlock Text="{Binding Name}" FontSize="15" VerticalAlignment="Center" />
-                    <Button Grid.Column="1" Content="Rename" Tag="{Binding}" Click="RenameSubject_Click" Padding="12,6" Margin="0,0,8,0" Foreground="{StaticResource SecondaryTextBrush}" Background="#292E39" BorderThickness="0" Cursor="Hand" />
+                    <TextBlock Text="{Binding Name}" FontSize="15" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Content="Rename" Tag="{Binding}" Click="RenameSubject_Click"
+                            Padding="12,6" Margin="0,0,8,0" Foreground="{StaticResource SecondaryTextBrush}"
+                            Background="#292E39" BorderThickness="0" Cursor="Hand" />
                     <Button Grid.Column="2" Content="Archive" Tag="{Binding Id}"
                             Click="ArchiveSubject_Click" Padding="12,6"
                             Foreground="{StaticResource SecondaryTextBrush}"
                             Background="#292E39" BorderThickness="0" Cursor="Hand">
                         <Button.Style>
-                            <Style TargetType="Button">
+                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                                 <Setter Property="Visibility" Value="Visible" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsArchived}" Value="True">
@@ -49,17 +72,15 @@
                        TextWrapping="Wrap" Margin="0,7,0,0" />
         </StackPanel>
 
-        <Border Grid.Row="1" Background="{StaticResource SurfaceBackgroundBrush}"
-                CornerRadius="12" Padding="16" Margin="0,24,0,0">
+        <Border Grid.Row="1" Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="#2B303B" BorderThickness="1"
+                CornerRadius="16" Padding="16" Margin="0,24,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBox x:Name="SubjectNameBox" Height="42" Padding="12,9"
-                         VerticalContentAlignment="Center" FontSize="14"
-                         
+                <TextBox x:Name="SubjectNameBox" Style="{StaticResource RoundedTextBoxStyle}"
+                         Height="42" Padding="12,9" FontSize="14" Background="#191C23"
                          BorderThickness="1" ToolTip="Subject name"
                          KeyDown="SubjectNameBox_KeyDown" />
                 <Button Grid.Column="1" Content="Add subject" Margin="12,0,0,0" Padding="18,0"
@@ -85,7 +106,3 @@
         </Grid>
     </Grid>
 </UserControl>
-
-
-
-

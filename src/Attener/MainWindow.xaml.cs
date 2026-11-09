@@ -9,7 +9,7 @@ public partial class MainWindow : Window
 
     private void Navigate_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button { Tag: string page })
+        if (sender is not RadioButton { Tag: string page })
             return;
 
         OverviewPage.Visibility = page == "Overview" ? Visibility.Visible : Visibility.Collapsed;
@@ -27,5 +27,3 @@ public partial class MainWindow : Window
         if (page == "Statistics") StatisticsPage.RefreshData();
     }
 }
-
-

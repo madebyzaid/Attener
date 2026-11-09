@@ -3,9 +3,27 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="Transparent">
     <UserControl.Resources>
+        <!-- Rounded progress bar: dark track, accent fill (replaces the default white bar). -->
+        <Style TargetType="ProgressBar">
+            <Setter Property="Background" Value="#2B303B" />
+            <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Grid>
+                            <Border x:Name="PART_Track" Background="{TemplateBinding Background}" CornerRadius="5" />
+                            <Border x:Name="PART_Indicator" Background="{TemplateBinding Foreground}"
+                                    CornerRadius="5" HorizontalAlignment="Left" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <DataTemplate x:Key="SubjectStatTemplate">
-            <Border Background="{StaticResource SurfaceBackgroundBrush}" CornerRadius="10"
-                    Padding="16" Margin="0,0,0,9">
+            <Border Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="#2B303B" BorderThickness="1"
+                    CornerRadius="12" Padding="16" Margin="0,0,0,9">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="2*" />
@@ -40,8 +58,8 @@
                        Foreground="{StaticResource SecondaryTextBrush}" Margin="0,7,0,0" />
         </StackPanel>
 
-        <Border Grid.Row="1" Background="{StaticResource SurfaceBackgroundBrush}"
-                CornerRadius="14" Padding="22" Margin="0,22,0,0">
+        <Border Grid.Row="1" Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="#2B303B" BorderThickness="1"
+                CornerRadius="16" Padding="22" Margin="0,22,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -74,4 +92,3 @@
         </Grid>
     </Grid>
 </UserControl>
-
