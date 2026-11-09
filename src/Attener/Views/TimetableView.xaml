@@ -1,9 +1,45 @@
-<UserControl x:Class="Attener.Views.TimetableView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Background="Transparent">
+<UserControl x:Class="Attener.Views.TimetableView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:Attener.Views" Background="Transparent">
   <Grid>
-    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
     <StackPanel><TextBlock Text="Timetable" FontSize="28" FontWeight="SemiBold"/><TextBlock Text="Click an hour to assign a subject. Adjacent hours for the same subject become one continuous class." FontSize="14" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,7,0,0"/></StackPanel>
-    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,18,0,10" VerticalAlignment="Center"><TextBlock Text="Changes effective from" VerticalAlignment="Center" Margin="0,0,12,0"/><DatePicker x:Name="EffectiveDatePicker" Width="190" Height="38" SelectedDateChanged="EffectiveDatePicker_SelectedDateChanged"/><TextBlock Text="· 8:00–20:00" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center" Margin="14,0,0,0"/></StackPanel>
-    <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"><Grid x:Name="TimetableGrid" MinWidth="1080"/></ScrollViewer>
+
+    <!-- Start date -->
+    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,18,0,0" VerticalAlignment="Center">
+      <TextBlock Text="Changes effective from" Width="170" VerticalAlignment="Center"/>
+      <DatePicker x:Name="EffectiveDatePicker" Width="190" Height="38" SelectedDateChanged="EffectiveDatePicker_SelectedDateChanged"/>
+      <TextBlock x:Name="EndDateStatus" FontSize="13" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center" Margin="14,0,0,0"/>
+    </StackPanel>
+
+    <!-- End date -->
+    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0" VerticalAlignment="Center">
+      <TextBlock Text="Ends on" Width="170" VerticalAlignment="Center"/>
+      <DatePicker x:Name="EndDatePicker" Width="190" Height="38"/>
+      <Button Content="Set end date" Margin="12,0,0,0" Padding="16,0" Height="38"
+              Background="{StaticResource AccentBrush}" Foreground="#111318"
+              FontWeight="SemiBold" BorderThickness="0" Cursor="Hand" Click="SetEndDate_Click"/>
+      <Button x:Name="ClearEndButton" Content="No end date" Margin="8,0,0,0" Padding="16,0" Height="38"
+              Background="#292E39" Foreground="{StaticResource SecondaryTextBrush}"
+              BorderThickness="0" Cursor="Hand" Click="ClearEndDate_Click"/>
+    </StackPanel>
+
+    <!-- Visible hours -->
+    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,10,0,12" VerticalAlignment="Center">
+      <TextBlock Text="Hours shown" Width="170" VerticalAlignment="Center"/>
+      <local:ClockTimePicker x:Name="StartHourPicker" Width="120" Height="38" EnterPressed="HourPicker_EnterPressed"/>
+      <TextBlock Text="to" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center" Margin="10,0"/>
+      <local:ClockTimePicker x:Name="EndHourPicker" Width="120" Height="38" EnterPressed="HourPicker_EnterPressed"/>
+      <Button Content="Apply" Margin="12,0,0,0" Padding="16,0" Height="38"
+              Background="{StaticResource AccentBrush}" Foreground="#111318"
+              FontWeight="SemiBold" BorderThickness="0" Cursor="Hand" Click="ApplyHours_Click"/>
+    </StackPanel>
+
+    <ScrollViewer Grid.Row="4" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"><Grid x:Name="TimetableGrid" MinWidth="1080"/></ScrollViewer>
   </Grid>
 </UserControl>
-

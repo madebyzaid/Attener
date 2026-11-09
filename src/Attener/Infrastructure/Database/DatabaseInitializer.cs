@@ -48,6 +48,7 @@ public sealed class DatabaseInitializer
                     EndTime         TEXT NOT NULL,
                     EffectiveFrom   TEXT NOT NULL,
                     EffectiveTo     TEXT,
+                    EndedByEndDate  INTEGER NOT NULL DEFAULT 0,
                     CHECK (EndTime > StartTime),
                     CHECK (EffectiveTo IS NULL OR EffectiveTo > EffectiveFrom)
                 );
@@ -83,31 +84,33 @@ public sealed class DatabaseInitializer
             command.ExecuteNonQuery();
         }
 
-        EnsureArchivedOnColumn(connection);
+        // Older databases were created before these columns existed.
+        EnsureColumn(connection, "Subjects", "ArchivedOn", "TEXT");
+        EnsureColumn(connection, "WeeklySessions", "EndedByEndDate", "INTEGER NOT NULL DEFAULT 0");
+
         using var versionCommand = connection.CreateCommand();
-        versionCommand.CommandText = "PRAGMA user_version = 2;";
+        versionCommand.CommandText = "PRAGMA user_version = 3;";
         versionCommand.ExecuteNonQuery();
     }
 
-    private static void EnsureArchivedOnColumn(SqliteConnection connection)
+    private static void EnsureColumn(SqliteConnection connection, string table, string column, string definition)
     {
         using var columnsCommand = connection.CreateCommand();
-        columnsCommand.CommandText = "PRAGMA table_info(Subjects);";
+        columnsCommand.CommandText = $"PRAGMA table_info({table});";
         using var reader = columnsCommand.ExecuteReader();
-        var hasArchivedOn = false;
+        var exists = false;
         while (reader.Read())
         {
-            if (reader.GetString(1) == "ArchivedOn")
-                hasArchivedOn = true;
+            if (reader.GetString(1) == column)
+                exists = true;
         }
         reader.Close();
 
-        if (hasArchivedOn)
+        if (exists)
             return;
 
         using var migration = connection.CreateCommand();
-        migration.CommandText = "ALTER TABLE Subjects ADD COLUMN ArchivedOn TEXT;";
+        migration.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {definition};";
         migration.ExecuteNonQuery();
     }
 }
-
