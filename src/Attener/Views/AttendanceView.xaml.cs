@@ -40,8 +40,10 @@ public partial class AttendanceView : UserControl
         var canGenerate = semesterStart is not null && date >= semesterStart.Value;
         var canEdit = date <= DateOnly.FromDateTime(DateTime.Today);
 
-        if (canGenerate && canEdit)
-            _attendance.GenerateMissingBetween(date, date);
+        // Create "Not Marked" records for every scheduled class from the semester start through today,
+        // so the Pending list never misses days you did not open. Existing records are left alone.
+        if (semesterStart is not null)
+            _attendance.GenerateMissingBetween(semesterStart.Value, DateOnly.FromDateTime(DateTime.Today));
 
         var entries = _showPending
             ? _attendance.GetPendingAttendance(DateOnly.FromDateTime(DateTime.Today))
@@ -70,12 +72,12 @@ public partial class AttendanceView : UserControl
         {
             EmptyStateText.Text = _showPending
                 ? semesterStart is null
-                    ? "Choose a semester start date on Overview to generate attendance records."
+                    ? "Choose a semester start date in Settings to generate attendance records."
                     : "No unmarked classes remain for today or earlier."
                 : !canEdit
                     ? "Future classes appear in Timetable and Calendar; they are not pending attendance."
                     : semesterStart is null
-                        ? "Choose a semester start date on Overview to generate attendance records."
+                        ? "Choose a semester start date in Settings to generate attendance records."
                         : date < semesterStart.Value
                             ? $"This date is before the selected semester start ({semesterStart:dd MMM yyyy})."
                             : "No classes are scheduled on this date.";
@@ -143,6 +145,3 @@ public partial class AttendanceView : UserControl
         }
     }
 }
-
-
-

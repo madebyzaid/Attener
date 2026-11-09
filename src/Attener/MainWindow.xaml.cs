@@ -12,18 +12,18 @@ public partial class MainWindow : Window
         if (sender is not RadioButton { Tag: string page })
             return;
 
-        OverviewPage.Visibility = page == "Overview" ? Visibility.Visible : Visibility.Collapsed;
         AttendancePage.Visibility = page == "Attendance" ? Visibility.Visible : Visibility.Collapsed;
-        SubjectsPage.Visibility = page == "Subjects" ? Visibility.Visible : Visibility.Collapsed;
+        StatisticsPage.Visibility = page == "Statistics" ? Visibility.Visible : Visibility.Collapsed;
         TimetablePage.Visibility = page == "Timetable" ? Visibility.Visible : Visibility.Collapsed;
         CalendarPage.Visibility = page == "Calendar" ? Visibility.Visible : Visibility.Collapsed;
-        StatisticsPage.Visibility = page == "Statistics" ? Visibility.Visible : Visibility.Collapsed;
+        SubjectsPage.Visibility = page == "Subjects" ? Visibility.Visible : Visibility.Collapsed;
+        SettingsPage.Visibility = page == "Settings" ? Visibility.Visible : Visibility.Collapsed;
 
-        if (page == "Overview") OverviewPage.RefreshData();
         if (page == "Attendance") AttendancePage.RefreshData();
-        if (page == "Timetable") TimetablePage.RefreshData();
-        if (page == "Subjects") SubjectsPage.RefreshData();
-        if (page == "Calendar") CalendarPage.RefreshData();
         if (page == "Statistics") StatisticsPage.RefreshData();
+        if (page == "Timetable") TimetablePage.RefreshData();
+        if (page == "Calendar") CalendarPage.RefreshData();
+        if (page == "Subjects") SubjectsPage.RefreshData();
+        if (page == "Settings") SettingsPage.RefreshData();
     }
 }

@@ -19,7 +19,8 @@
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
-        <!-- Sidebar item: rounded pill, white when it is the active page. -->
+        <!-- Sidebar item: rounded pill, white when it is the active page.
+             GroupName makes all pills one group, even the Settings pill at the bottom. -->
         <Style x:Key="NavPillStyle" TargetType="RadioButton">
             <Setter Property="GroupName" Value="Navigation" />
             <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
@@ -67,16 +68,22 @@
                 <TextBlock Text="ATTENER" Foreground="{StaticResource AccentBrush}" FontSize="22" FontWeight="Bold" />
                 <TextBlock Text="Your semester, clearly tracked" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12" Margin="0,6,0,0" />
             </StackPanel>
+
+            <!-- Settings pinned to the bottom (must come before the last child, which fills the rest) -->
+            <StackPanel DockPanel.Dock="Bottom">
+                <Border Height="1" Background="#2B303B" Margin="8,0,8,12" />
+                <RadioButton Tag="Settings" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE713;" />
+                        <TextBlock Style="{StaticResource NavLabelStyle}" Text="Settings" />
+                    </StackPanel>
+                </RadioButton>
+            </StackPanel>
+
             <StackPanel>
                 <TextBlock Text="WORKSPACE" Foreground="{StaticResource SecondaryTextBrush}" FontSize="10" FontWeight="SemiBold" Margin="16,0,0,10" />
 
-                <RadioButton Tag="Overview" IsChecked="True" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE80F;" />
-                        <TextBlock Style="{StaticResource NavLabelStyle}" Text="Overview" />
-                    </StackPanel>
-                </RadioButton>
-                <RadioButton Tag="Attendance" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
+                <RadioButton Tag="Attendance" IsChecked="True" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE73A;" />
                         <TextBlock Style="{StaticResource NavLabelStyle}" Text="Attendance" />
@@ -113,12 +120,12 @@
         <Border Grid.Column="1" Margin="0,12,12,12" CornerRadius="20"
                 Background="{StaticResource SidebarBackgroundBrush}" Padding="40,34">
             <Grid>
-                <views:OverviewView x:Name="OverviewPage" />
-                <views:AttendanceView x:Name="AttendancePage" Visibility="Collapsed" />
-                <views:SubjectsView x:Name="SubjectsPage" Visibility="Collapsed" />
+                <views:AttendanceView x:Name="AttendancePage" />
+                <views:StatisticsView x:Name="StatisticsPage" Visibility="Collapsed" />
                 <views:TimetableView x:Name="TimetablePage" Visibility="Collapsed" />
                 <views:CalendarView x:Name="CalendarPage" Visibility="Collapsed" />
-                <views:StatisticsView x:Name="StatisticsPage" Visibility="Collapsed" />
+                <views:SubjectsView x:Name="SubjectsPage" Visibility="Collapsed" />
+                <views:SettingsView x:Name="SettingsPage" Visibility="Collapsed" />
             </Grid>
         </Border>
     </Grid>

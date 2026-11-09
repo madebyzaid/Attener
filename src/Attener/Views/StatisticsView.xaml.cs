@@ -28,7 +28,7 @@ public partial class StatisticsView : UserControl
             OverallHours.Text = "No counted hours yet";
             OverallProgress.Value = 0;
             SubjectStatsList.ItemsSource = Array.Empty<SubjectStatRow>();
-            EmptyStateText.Text = "Choose a semester start date on Overview to view statistics.";
+            EmptyStateText.Text = "Choose a semester start date in Settings to view statistics.";
             EmptyStateText.Visibility = Visibility.Visible;
             return;
         }
