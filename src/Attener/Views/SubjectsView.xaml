@@ -32,13 +32,14 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Text="{Binding Name}" FontSize="15" VerticalAlignment="Center" />
                     <Button Grid.Column="1" Content="Rename" Tag="{Binding}" Click="RenameSubject_Click"
                             Padding="12,6" Margin="0,0,8,0" Foreground="{StaticResource SecondaryTextBrush}"
                             Background="#292E39" BorderThickness="0" Cursor="Hand" />
                     <Button Grid.Column="2" Content="Archive" Tag="{Binding Id}"
-                            Click="ArchiveSubject_Click" Padding="12,6"
+                            Click="ArchiveSubject_Click" Padding="12,6" Margin="0,0,8,0"
                             Foreground="{StaticResource SecondaryTextBrush}"
                             Background="#292E39" BorderThickness="0" Cursor="Hand">
                         <Button.Style>
@@ -52,6 +53,10 @@
                             </Style>
                         </Button.Style>
                     </Button>
+                    <Button Grid.Column="3" Content="Delete" Tag="{Binding Id}"
+                            Click="DeleteSubject_Click" Padding="12,6"
+                            Foreground="{StaticResource SecondaryTextBrush}"
+                            Background="#292E39" BorderThickness="0" Cursor="Hand" />
                 </Grid>
             </Border>
         </DataTemplate>

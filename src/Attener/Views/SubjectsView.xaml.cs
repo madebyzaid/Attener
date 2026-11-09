@@ -111,7 +111,33 @@ public partial class SubjectsView : UserControl
         _repository.ArchiveSubject(subjectId, DateOnly.FromDateTime(DateTime.Today));
         LoadSubjects();
     }
+
+    // Permanently deletes the subject and everything recorded for it. Just one OK click confirms.
+    private void DeleteSubject_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: long subjectId, DataContext: SubjectSummary subject })
+        {
+            return;
+        }
+
+        var result = MessageBox.Show(
+            $"Permanently delete {subject.Name}? All of its attendance records and timetable entries will be deleted. This cannot be undone.",
+            "Delete subject", MessageBoxButton.OKCancel, MessageBoxImage.Warning, MessageBoxResult.Cancel);
+        if (result != MessageBoxResult.OK)
+        {
+            return;
+        }
+
+        try
+        {
+            _repository.DeleteSubject(subjectId);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Could not delete the subject. {ex.Message}", "Delete failed",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+
+        LoadSubjects();
+    }
 }
-
-
-

@@ -83,6 +83,31 @@ public sealed class SubjectRepository
         transaction.Commit();
         return changed;
     }
+
+    // Permanently removes a subject together with its attendance records and timetable entries.
+    // The child tables go first because they reference Subjects.
+    public bool DeleteSubject(long subjectId)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+
+        foreach (var table in new[] { "AttendanceRecords", "WeeklySessions" })
+        {
+            using var child = connection.CreateCommand();
+            child.Transaction = transaction;
+            child.CommandText = $"DELETE FROM {table} WHERE SubjectId = $id;";
+            child.Parameters.AddWithValue("$id", subjectId);
+            child.ExecuteNonQuery();
+        }
+
+        using var subject = connection.CreateCommand();
+        subject.Transaction = transaction;
+        subject.CommandText = "DELETE FROM Subjects WHERE Id = $id;";
+        subject.Parameters.AddWithValue("$id", subjectId);
+        var deleted = subject.ExecuteNonQuery() == 1;
+
+        transaction.Commit();
+        return deleted;
+    }
 }
-
-
