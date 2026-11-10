@@ -37,12 +37,32 @@ public partial class SettingsView : UserControl
 
         var startDate = DateOnly.FromDateTime(selectedDate);
         var today = DateOnly.FromDateTime(DateTime.Today);
+
+        // Moving the start later removes everything before it, so ask first.
+        var (total, marked) = _attendance.CountRecordsBefore(startDate);
+        var deleted = 0;
+        if (total > 0)
+        {
+            var answer = MessageBox.Show(
+                $"Moving the semester start to {startDate:dd MMM yyyy} will permanently delete {total} attendance record(s) before that date" +
+                (marked > 0 ? $", including {marked} you already marked" : "") +
+                ".\n\nThis cannot be undone. Continue?",
+                "Delete earlier records?", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
+            if (answer != MessageBoxResult.Yes)
+            {
+                RefreshData();
+                return;
+            }
+            deleted = _attendance.DeleteRecordsBefore(startDate);
+        }
+
         _settings.SaveSemesterStartDate(startDate);
         var created = _attendance.GenerateMissingBetween(startDate, today);
 
+        var deletedNote = deleted > 0 ? $" {deleted} earlier record(s) were deleted." : "";
         GenerationMessage.Text = startDate > today
-            ? "The semester start is in the future. Historical records will be generated when that date arrives."
-            : $"Semester start saved. {created} pending class record(s) were created; existing attendance was preserved.";
+            ? "The semester start is in the future. Historical records will be generated when that date arrives." + deletedNote
+            : $"Semester start saved. {created} pending class record(s) were created; existing attendance was preserved.{deletedNote}";
     }
 
     private void DeleteAllData_Click(object sender, RoutedEventArgs e)

@@ -149,7 +149,7 @@ public sealed class AttendanceRepository
         }
         return entries;
     }
-    public void SaveAttendance(AttendanceEntry entry, AttendanceStatus status, int? actualDurationMinutes)
+    public void SaveAttendance(AttendanceEntry entry, AttendanceStatus status)
     {
         using var connection = new SqliteConnection(_connectionString);
         connection.Open();
@@ -173,8 +173,63 @@ public sealed class AttendanceRepository
         command.Parameters.AddWithValue("$start", (object?)entry.ScheduledStart ?? DBNull.Value);
         command.Parameters.AddWithValue("$end", (object?)entry.ScheduledEnd ?? DBNull.Value);
         command.Parameters.AddWithValue("$scheduledMinutes", entry.ScheduledDurationMinutes);
-        command.Parameters.AddWithValue("$actualMinutes", (object?)actualDurationMinutes ?? DBNull.Value);
+        // Actual duration is no longer edited anywhere: a saved record always counts its full scheduled time.
+        command.Parameters.AddWithValue("$actualMinutes", DBNull.Value);
         command.ExecuteNonQuery();
+    }
+
+    // How many records are dated before this day, and how many of them already have a mark
+    // (anything except Not Marked). Used to warn before the semester start moves later.
+    public (int Total, int Marked) CountRecordsBefore(DateOnly date)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT COUNT(*), COALESCE(SUM(CASE WHEN Status <> 'Not Marked' THEN 1 ELSE 0 END), 0)
+            FROM AttendanceRecords
+            WHERE AttendanceDate < $date;
+            """;
+        command.Parameters.AddWithValue("$date", FormatDate(date));
+        using var reader = command.ExecuteReader();
+        reader.Read();
+        return (reader.GetInt32(0), reader.GetInt32(1));
+    }
+
+    // Permanently deletes every attendance record dated before this day. Returns how many were deleted.
+    public int DeleteRecordsBefore(DateOnly date)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "DELETE FROM AttendanceRecords WHERE AttendanceDate < $date;";
+        command.Parameters.AddWithValue("$date", FormatDate(date));
+        return command.ExecuteNonQuery();
+    }
+
+    // Deletes Not Marked records dated on or after this day whose class is no longer in the timetable
+    // (same subject, weekday, start and end time). Marked records are never deleted.
+    public int DeleteStaleUnmarkedFrom(DateOnly fromDate)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            DELETE FROM AttendanceRecords
+            WHERE Status = 'Not Marked'
+              AND AttendanceDate >= $fromDate
+              AND NOT EXISTS (
+                  SELECT 1 FROM WeeklySessions ws
+                  WHERE ws.SubjectId = AttendanceRecords.SubjectId
+                    AND ws.DayOfWeek = CAST(strftime('%w', AttendanceRecords.AttendanceDate) AS INTEGER)
+                    AND ws.StartTime = AttendanceRecords.ScheduledStart
+                    AND ws.EndTime = AttendanceRecords.ScheduledEnd
+                    AND ws.EffectiveFrom <= AttendanceRecords.AttendanceDate
+                    AND (ws.EffectiveTo IS NULL OR ws.EffectiveTo > AttendanceRecords.AttendanceDate)
+              );
+            """;
+        command.Parameters.AddWithValue("$fromDate", FormatDate(fromDate));
+        return command.ExecuteNonQuery();
     }
 
     private static string FormatDate(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);

@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using Attener.Features.Attendance;
 using Attener.Features.Subjects;
 using Attener.Features.Timetable;
 using Attener.Infrastructure.Database;
@@ -13,6 +14,8 @@ public partial class TimetableView : UserControl
     private readonly SubjectRepository _subjects = new(DatabaseLocation.GetPath());
     private readonly TimetableRepository _timetable = new(DatabaseLocation.GetPath());
     private readonly TimetableSettingsRepository _hourSettings = new(DatabaseLocation.GetPath());
+    private readonly AttendanceRepository _attendance = new(DatabaseLocation.GetPath());
+    private readonly SemesterSettingsRepository _semester = new(DatabaseLocation.GetPath());
     private static readonly string[] Days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
     // Hours of the day that can hold classes. Stored times are HH:mm, so the day ends at 23:00.
@@ -264,9 +267,25 @@ public partial class TimetableView : UserControl
                 while (i < allHours.Length && allHours[i].Id == id) { end++; i++; }
                 _timetable.SaveWeeklySession(id, dayOfWeek, new TimeOnly(start, 0), new TimeOnly(end, 0), date, lastDay);
             }
+            SyncAttendance(date);
             BuildGrid();
         }
         catch (Exception ex) { MessageBox.Show($"Could not update this day. {ex.Message}", "Timetable update failed", MessageBoxButton.OK, MessageBoxImage.Error); BuildGrid(); }
+    }
+
+    // After a timetable change from this date, bring the stored attendance records in line with it:
+    // Not Marked records whose class no longer exists are deleted, and missing records for scheduled
+    // classes are created. Marked records (Present, Absent, Cancelled) are never touched.
+    private void SyncAttendance(DateOnly fromDate)
+    {
+        _attendance.DeleteStaleUnmarkedFrom(fromDate);
+
+        var semesterStart = _semester.GetSemesterStartDate();
+        if (semesterStart is null)
+            return;
+
+        var start = fromDate > semesterStart.Value ? fromDate : semesterStart.Value;
+        _attendance.GenerateMissingBetween(start, DateOnly.FromDateTime(DateTime.Today));
     }
 
     // Saves the end date. An empty end date means "no end date". It needs the date the changes take effect.
@@ -291,6 +310,7 @@ public partial class TimetableView : UserControl
         try
         {
             var changed = _timetable.SetEndDate(effectiveDate, lastDay);
+            SyncAttendance(effectiveDate);
             if (changed == 0)
             {
                 MessageBox.Show("No classes run from this date onward, so there is nothing to end.",
@@ -381,6 +401,7 @@ public partial class TimetableView : UserControl
 
                 _timetable.CropToHours(cropFrom, start, end);
                 _hourSettings.SaveHourRange(start, end);
+                SyncAttendance(cropFrom);
             }
             catch (Exception ex)
             {

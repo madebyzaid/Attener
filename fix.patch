@@ -1,0 +1,212 @@
+diff --git a/README.md b/README.md
+--- a/README.md
++++ b/README.md
+@@ -13,10 +13,11 @@
+ - Add and archive subjects while preserving their attendance history.
+-- Create regular weekly sessions with exact start and end times.
+-- Apply timetable changes from a chosen effective date while retaining earlier schedule history.
++- Build a weekly timetable on an hourly grid; adjacent hours for the same subject become one class.
++- Choose the hours the grid shows with a clock picker; classes outside them are cropped from the chosen date onward.
++- Apply timetable changes from a chosen effective date, with an optional end date, while retaining earlier schedule history. Unmarked records from that date onward are updated to match; marked attendance is never touched.
+ - Select a calendar date to see each class time and its attendance status.
+-- Select the semester start date and generate historical Not Marked records.
+-- Mark attendance by date or work from the pending list.
+-- Edit actual class duration in hours.
++- Select the semester start date and generate historical Not Marked records. Moving it later deletes the earlier records after a confirmation.
++- Mark attendance by date or work from the pending list. Each class counts its full scheduled duration.
+ - View overall and subject-wise attendance statistics.
++- Permanently delete a subject, or all data, from the app.
+ 
+ ## Local data
+diff --git a/src/Attener/Features/Attendance/AttendanceRepository.cs b/src/Attener/Features/Attendance/AttendanceRepository.cs
+--- a/src/Attener/Features/Attendance/AttendanceRepository.cs
++++ b/src/Attener/Features/Attendance/AttendanceRepository.cs
+@@ -149,7 +149,7 @@
+         }
+         return entries;
+     }
+-    public void SaveAttendance(AttendanceEntry entry, AttendanceStatus status, int? actualDurationMinutes)
++    public void SaveAttendance(AttendanceEntry entry, AttendanceStatus status)
+     {
+         using var connection = new SqliteConnection(_connectionString);
+         connection.Open();
+@@ -173,10 +173,64 @@
+         command.Parameters.AddWithValue("$start", (object?)entry.ScheduledStart ?? DBNull.Value);
+         command.Parameters.AddWithValue("$end", (object?)entry.ScheduledEnd ?? DBNull.Value);
+         command.Parameters.AddWithValue("$scheduledMinutes", entry.ScheduledDurationMinutes);
+-        command.Parameters.AddWithValue("$actualMinutes", (object?)actualDurationMinutes ?? DBNull.Value);
++        // Actual duration is no longer edited anywhere: a saved record always counts its full scheduled time.
++        command.Parameters.AddWithValue("$actualMinutes", DBNull.Value);
+         command.ExecuteNonQuery();
+     }
+ 
++    // How many records are dated before this day, and how many of them already have a mark
++    // (anything except Not Marked). Used to warn before the semester start moves later.
++    public (int Total, int Marked) CountRecordsBefore(DateOnly date)
++    {
++        using var connection = new SqliteConnection(_connectionString);
++        connection.Open();
++        using var command = connection.CreateCommand();
++        command.CommandText = """
++            SELECT COUNT(*), COALESCE(SUM(CASE WHEN Status <> 'Not Marked' THEN 1 ELSE 0 END), 0)
++            FROM AttendanceRecords
++            WHERE AttendanceDate < $date;
++            """;
++        command.Parameters.AddWithValue("$date", FormatDate(date));
++        using var reader = command.ExecuteReader();
++        reader.Read();
++        return (reader.GetInt32(0), reader.GetInt32(1));
++    }
++
++    // Permanently deletes every attendance record dated before this day. Returns how many were deleted.
++    public int DeleteRecordsBefore(DateOnly date)
++    {
++        using var connection = new SqliteConnection(_connectionString);
++        connection.Open();
++        using var command = connection.CreateCommand();
++        command.CommandText = "DELETE FROM AttendanceRecords WHERE AttendanceDate < $date;";
++        command.Parameters.AddWithValue("$date", FormatDate(date));
++        return command.ExecuteNonQuery();
++    }
++
++    // Deletes Not Marked records dated on or after this day whose class is no longer in the timetable
++    // (same subject, weekday, start and end time). Marked records are never deleted.
++    public int DeleteStaleUnmarkedFrom(DateOnly fromDate)
++    {
++        using var connection = new SqliteConnection(_connectionString);
++        connection.Open();
++        using var command = connection.CreateCommand();
++        command.CommandText = """
++            DELETE FROM AttendanceRecords
++            WHERE Status = 'Not Marked'
++              AND AttendanceDate >= $fromDate
++              AND NOT EXISTS (
++                  SELECT 1 FROM WeeklySessions ws
++                  WHERE ws.SubjectId = AttendanceRecords.SubjectId
++                    AND ws.DayOfWeek = CAST(strftime('%w', AttendanceRecords.AttendanceDate) AS INTEGER)
++                    AND ws.StartTime = AttendanceRecords.ScheduledStart
++                    AND ws.EndTime = AttendanceRecords.ScheduledEnd
++                    AND ws.EffectiveFrom <= AttendanceRecords.AttendanceDate
++                    AND (ws.EffectiveTo IS NULL OR ws.EffectiveTo > AttendanceRecords.AttendanceDate)
++              );
++            """;
++        command.Parameters.AddWithValue("$fromDate", FormatDate(fromDate));
++        return command.ExecuteNonQuery();
++    }
++
+     private static string FormatDate(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+ 
+     private static string FormatStatus(AttendanceStatus status) => status switch
+diff --git a/src/Attener/Views/AttendanceView.xaml.cs b/src/Attener/Views/AttendanceView.xaml.cs
+--- a/src/Attener/Views/AttendanceView.xaml.cs
++++ b/src/Attener/Views/AttendanceView.xaml.cs
+@@ -87,7 +87,7 @@
+             return;
+ 
+         var newStatus = row.SelectedStatus == clicked ? AttendanceStatus.NotMarked : clicked;
+-        _attendance.SaveAttendance(row.Entry, newStatus, null);
++        _attendance.SaveAttendance(row.Entry, newStatus);
+         LoadAttendance();
+     }
+ 
+diff --git a/src/Attener/Views/SettingsView.xaml.cs b/src/Attener/Views/SettingsView.xaml.cs
+--- a/src/Attener/Views/SettingsView.xaml.cs
++++ b/src/Attener/Views/SettingsView.xaml.cs
+@@ -37,10 +37,30 @@
+ 
+         var startDate = DateOnly.FromDateTime(selectedDate);
+         var today = DateOnly.FromDateTime(DateTime.Today);
++
++        // Moving the start later removes everything before it, so ask first.
++        var (total, marked) = _attendance.CountRecordsBefore(startDate);
++        var deleted = 0;
++        if (total > 0)
++        {
++            var answer = MessageBox.Show(
++                $"Moving the semester start to {startDate:dd MMM yyyy} will permanently delete {total} attendance record(s) before that date" +
++                (marked > 0 ? $", including {marked} you already marked" : "") +
++                ".\n\nThis cannot be undone. Continue?",
++                "Delete earlier records?", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
++            if (answer != MessageBoxResult.Yes)
++            {
++                RefreshData();
++                return;
++            }
++            deleted = _attendance.DeleteRecordsBefore(startDate);
++        }
++
+         _settings.SaveSemesterStartDate(startDate);
+         var created = _attendance.GenerateMissingBetween(startDate, today);
+ 
++        var deletedNote = deleted > 0 ? $" {deleted} earlier record(s) were deleted." : "";
+         GenerationMessage.Text = startDate > today
+-            ? "The semester start is in the future. Historical records will be generated when that date arrives."
+-            : $"Semester start saved. {created} pending class record(s) were created; existing attendance was preserved.";
++            ? "The semester start is in the future. Historical records will be generated when that date arrives." + deletedNote
++            : $"Semester start saved. {created} pending class record(s) were created; existing attendance was preserved.{deletedNote}";
+     }
+ 
+diff --git a/src/Attener/Views/TimetableView.xaml.cs b/src/Attener/Views/TimetableView.xaml.cs
+--- a/src/Attener/Views/TimetableView.xaml.cs
++++ b/src/Attener/Views/TimetableView.xaml.cs
+@@ -2,6 +2,7 @@
+ using System.Windows.Controls;
+ using System.Windows.Input;
+ using System.Windows.Media;
++using Attener.Features.Attendance;
+ using Attener.Features.Subjects;
+ using Attener.Features.Timetable;
+ using Attener.Infrastructure.Database;
+@@ -13,6 +14,8 @@
+     private readonly SubjectRepository _subjects = new(DatabaseLocation.GetPath());
+     private readonly TimetableRepository _timetable = new(DatabaseLocation.GetPath());
+     private readonly TimetableSettingsRepository _hourSettings = new(DatabaseLocation.GetPath());
++    private readonly AttendanceRepository _attendance = new(DatabaseLocation.GetPath());
++    private readonly SemesterSettingsRepository _semester = new(DatabaseLocation.GetPath());
+     private static readonly string[] Days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+ 
+     // Hours of the day that can hold classes. Stored times are HH:mm, so the day ends at 23:00.
+@@ -265,11 +268,27 @@
+                 while (i < allHours.Length && allHours[i].Id == id) { end++; i++; }
+                 _timetable.SaveWeeklySession(id, dayOfWeek, new TimeOnly(start, 0), new TimeOnly(end, 0), date, lastDay);
+             }
++            SyncAttendance(date);
+             BuildGrid();
+         }
+         catch (Exception ex) { MessageBox.Show($"Could not update this day. {ex.Message}", "Timetable update failed", MessageBoxButton.OK, MessageBoxImage.Error); BuildGrid(); }
+     }
+ 
++    // After a timetable change from this date, bring the stored attendance records in line with it:
++    // Not Marked records whose class no longer exists are deleted, and missing records for scheduled
++    // classes are created. Marked records (Present, Absent, Cancelled) are never touched.
++    private void SyncAttendance(DateOnly fromDate)
++    {
++        _attendance.DeleteStaleUnmarkedFrom(fromDate);
++
++        var semesterStart = _semester.GetSemesterStartDate();
++        if (semesterStart is null)
++            return;
++
++        var start = fromDate > semesterStart.Value ? fromDate : semesterStart.Value;
++        _attendance.GenerateMissingBetween(start, DateOnly.FromDateTime(DateTime.Today));
++    }
++
+     // Saves the end date. An empty end date means "no end date". It needs the date the changes take effect.
+     private void SaveEndDate_Click(object sender, RoutedEventArgs e)
+     {
+@@ -292,6 +311,7 @@
+         try
+         {
+             var changed = _timetable.SetEndDate(effectiveDate, lastDay);
++            SyncAttendance(effectiveDate);
+             if (changed == 0)
+             {
+                 MessageBox.Show("No classes run from this date onward, so there is nothing to end.",
+@@ -382,6 +402,7 @@
+ 
+                 _timetable.CropToHours(cropFrom, start, end);
+                 _hourSettings.SaveHourRange(start, end);
++                SyncAttendance(cropFrom);
+             }
+             catch (Exception ex)
+             {

@@ -11,13 +11,14 @@ A single-user, offline-first Windows desktop app for tracking class attendance b
 ## Current features
 
 - Add and archive subjects while preserving their attendance history.
-- Create regular weekly sessions with exact start and end times.
-- Apply timetable changes from a chosen effective date while retaining earlier schedule history.
+- Build a weekly timetable on an hourly grid; adjacent hours for the same subject become one class.
+- Choose the hours the grid shows with a clock picker; classes outside them are cropped from the chosen date onward.
+- Apply timetable changes from a chosen effective date, with an optional end date, while retaining earlier schedule history. Unmarked records from that date onward are updated to match; marked attendance is never touched.
 - Select a calendar date to see each class time and its attendance status.
-- Select the semester start date and generate historical Not Marked records.
-- Mark attendance by date or work from the pending list.
-- Edit actual class duration in hours.
+- Select the semester start date and generate historical Not Marked records. Moving it later deletes the earlier records after a confirmation.
+- Mark attendance by date or work from the pending list. Each class counts its full scheduled duration.
 - View overall and subject-wise attendance statistics.
+- Permanently delete a subject, or all data, from the app.
 
 ## Local data
 

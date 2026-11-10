@@ -87,7 +87,7 @@ public partial class AttendanceView : UserControl
             return;
 
         var newStatus = row.SelectedStatus == clicked ? AttendanceStatus.NotMarked : clicked;
-        _attendance.SaveAttendance(row.Entry, newStatus, null);
+        _attendance.SaveAttendance(row.Entry, newStatus);
         LoadAttendance();
     }
 
