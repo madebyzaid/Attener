@@ -45,66 +45,76 @@ public sealed class TimetableRepository
         return sessions;
     }
 
-    // The last day the timetable that is in force on this date will run, or null if it has no end date.
-    public DateOnly? GetEndDate(DateOnly effectiveOn)
+    // One stretch of time during which the same weekly timetable was in force.
+    // End is exclusive (the day the next timetable began), or null for the timetable that is still running.
+    public sealed record TimetablePeriod(DateOnly Start, DateOnly? End)
     {
-        using var connection = new SqliteConnection(_connectionString);
-        connection.Open();
-        var boundary = ReadEndBoundary(connection, null, FormatDate(effectiveOn));
-        return boundary is null ? null : ParseDate(boundary).AddDays(-1);
+        // The last day this timetable was in force, or null if it is still running.
+        public DateOnly? LastDay => End?.AddDays(-1);
     }
 
-    // Ends every class that runs from effectiveOn onward on lastClassDay (inclusive).
-    // If the timetable already had an end date, it is replaced. Classes that start after
-    // lastClassDay are left alone. Returns how many weekly sessions were ended.
-    public int SetEndDate(DateOnly effectiveOn, DateOnly lastClassDay)
+    // The timetables that have been in force, oldest first. A new period starts on every day the
+    // timetable changed. Neighbouring periods that had exactly the same classes are joined into one,
+    // and periods with no classes at all are left out. Edits made and replaced on the same day never
+    // appear, because periods only start and end on whole days.
+    public IReadOnlyList<TimetablePeriod> GetHistory()
     {
-        if (lastClassDay < effectiveOn)
-            throw new ArgumentException("The end date cannot be before the date the changes take effect.");
-
-        var date = FormatDate(effectiveOn);
-        var endExclusive = FormatDate(lastClassDay.AddDays(1));
-
         using var connection = new SqliteConnection(_connectionString);
         connection.Open();
-        using var transaction = connection.BeginTransaction();
 
-        var oldBoundary = ReadEndBoundary(connection, transaction, date);
-        if (oldBoundary is not null)
-            ReopenEndedSessions(connection, transaction, oldBoundary);
+        var boundaries = new List<DateOnly>();
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                SELECT EffectiveFrom FROM WeeklySessions
+                UNION
+                SELECT EffectiveTo FROM WeeklySessions WHERE EffectiveTo IS NOT NULL
+                ORDER BY 1;
+                """;
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+                boundaries.Add(ParseDate(reader.GetString(0)));
+        }
 
+        var periods = new List<(TimetablePeriod Period, string Signature)>();
+        for (var i = 0; i < boundaries.Count; i++)
+        {
+            DateOnly? end = i + 1 < boundaries.Count ? boundaries[i + 1] : null;
+            var signature = ReadSignature(connection, FormatDate(boundaries[i]));
+            if (periods.Count > 0 && periods[^1].Signature == signature)
+                periods[^1] = (periods[^1].Period with { End = end }, signature);
+            else
+                periods.Add((new TimetablePeriod(boundaries[i], end), signature));
+        }
+
+        return periods.Where(item => item.Signature.Length > 0).Select(item => item.Period).ToList();
+    }
+
+    // A text fingerprint of the classes in force on this date, used to compare two timetables.
+    private static string ReadSignature(SqliteConnection connection, string date)
+    {
         using var command = connection.CreateCommand();
-        command.Transaction = transaction;
         command.CommandText = """
-            UPDATE WeeklySessions
-            SET EffectiveTo = $to, EndedByEndDate = 1
-            WHERE EffectiveFrom < $to
-              AND (EffectiveTo IS NULL OR EffectiveTo > $to);
+            SELECT ws.SubjectId, ws.DayOfWeek, ws.StartTime, ws.EndTime
+            FROM WeeklySessions ws
+            JOIN Subjects s ON s.Id = ws.SubjectId
+            WHERE (s.IsArchived = 0 OR s.ArchivedOn > $date)
+              AND ws.EffectiveFrom <= $date
+              AND (ws.EffectiveTo IS NULL OR ws.EffectiveTo > $date)
+            ORDER BY ws.DayOfWeek, ws.StartTime, ws.SubjectId;
             """;
-        command.Parameters.AddWithValue("$to", endExclusive);
-        var changed = command.ExecuteNonQuery();
+        command.Parameters.AddWithValue("$date", date);
 
-        transaction.Commit();
-        return changed;
-    }
-
-    // Removes the end date of the timetable in force on this date. Only classes that were ended by an
-    // end date are re-opened; classes you removed or replaced in the timetable stay as they are.
-    public int ClearEndDate(DateOnly effectiveOn)
-    {
-        using var connection = new SqliteConnection(_connectionString);
-        connection.Open();
-        using var transaction = connection.BeginTransaction();
-
-        var boundary = ReadEndBoundary(connection, transaction, FormatDate(effectiveOn));
-        var changed = boundary is null ? 0 : ReopenEndedSessions(connection, transaction, boundary);
-
-        transaction.Commit();
-        return changed;
+        var text = new System.Text.StringBuilder();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+            text.Append(reader.GetInt64(0)).Append('|').Append(reader.GetInt32(1)).Append('|')
+                .Append(reader.GetString(2)).Append('|').Append(reader.GetString(3)).Append(';');
+        return text.ToString();
     }
 
     public void SaveWeeklySession(long subjectId, int dayOfWeek, TimeOnly startTime,
-        TimeOnly endTime, DateOnly effectiveFrom, DateOnly? lastClassDay = null)
+        TimeOnly endTime, DateOnly effectiveFrom)
     {
         if (dayOfWeek is < 0 or > 6)
             throw new ArgumentOutOfRangeException(nameof(dayOfWeek));
@@ -112,7 +122,6 @@ public sealed class TimetableRepository
             throw new ArgumentException("The end time must be later than the start time.");
 
         var effectiveDate = FormatDate(effectiveFrom);
-        var endBoundary = lastClassDay is null ? null : FormatDate(lastClassDay.Value.AddDays(1));
         using var connection = new SqliteConnection(_connectionString);
         connection.Open();
         using var transaction = connection.BeginTransaction();
@@ -120,7 +129,6 @@ public sealed class TimetableRepository
         long? currentId = null;
         string? currentFrom = null;
         string? currentTo = null;
-        var currentEnded = false;
         using (var current = connection.CreateCommand())
         {
             current.Transaction = transaction;
@@ -128,7 +136,7 @@ public sealed class TimetableRepository
             // subject + weekday + start time. (Without the start time, saving a second class of the
             // same subject would overwrite the first one.)
             current.CommandText = """
-                SELECT Id, EffectiveFrom, EffectiveTo, EndedByEndDate
+                SELECT Id, EffectiveFrom, EffectiveTo
                 FROM WeeklySessions
                 WHERE SubjectId = $subjectId AND DayOfWeek = $dayOfWeek
                   AND StartTime = $start
@@ -146,7 +154,6 @@ public sealed class TimetableRepository
                 currentId = reader.GetInt64(0);
                 currentFrom = reader.GetString(1);
                 currentTo = reader.IsDBNull(2) ? null : reader.GetString(2);
-                currentEnded = reader.GetInt64(3) == 1;
             }
         }
 
@@ -174,24 +181,13 @@ public sealed class TimetableRepository
 
             var nextEffectiveFrom = currentTo ?? FindNextStart(connection, transaction,
                 subjectId, dayOfWeek, effectiveDate);
-            var endedByEndDate = currentId.HasValue && currentEnded;
-
-            // Keep the timetable's end date: the new class stops at the end date unless
-            // another version of it already starts sooner.
-            if (endBoundary is not null
-                && string.CompareOrdinal(endBoundary, effectiveDate) > 0
-                && (nextEffectiveFrom is null || string.CompareOrdinal(endBoundary, nextEffectiveFrom) <= 0))
-            {
-                nextEffectiveFrom = endBoundary;
-                endedByEndDate = true;
-            }
 
             using var insert = connection.CreateCommand();
             insert.Transaction = transaction;
             insert.CommandText = """
                 INSERT INTO WeeklySessions
                     (SubjectId, DayOfWeek, StartTime, EndTime, EffectiveFrom, EffectiveTo, EndedByEndDate)
-                VALUES ($subjectId, $dayOfWeek, $start, $end, $from, $to, $ended);
+                VALUES ($subjectId, $dayOfWeek, $start, $end, $from, $to, 0);
                 """;
             insert.Parameters.AddWithValue("$subjectId", subjectId);
             insert.Parameters.AddWithValue("$dayOfWeek", dayOfWeek);
@@ -199,7 +195,6 @@ public sealed class TimetableRepository
             insert.Parameters.AddWithValue("$end", FormatTime(endTime));
             insert.Parameters.AddWithValue("$from", effectiveDate);
             insert.Parameters.AddWithValue("$to", (object?)nextEffectiveFrom ?? DBNull.Value);
-            insert.Parameters.AddWithValue("$ended", endedByEndDate ? 1 : 0);
             insert.ExecuteNonQuery();
         }
 
@@ -366,45 +361,6 @@ public sealed class TimetableRepository
                 reader.GetString(5), reader.IsDBNull(6) ? null : reader.GetString(6), reader.GetInt32(7)));
         }
         return rows;
-    }
-
-    // The earliest "ended by an end date" stop among the classes running on this date (exclusive end,
-    // so it is the day AFTER the last class day). Null when the timetable has no end date.
-    private static string? ReadEndBoundary(SqliteConnection connection, SqliteTransaction? transaction, string date)
-    {
-        using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = """
-            SELECT MIN(ws.EffectiveTo)
-            FROM WeeklySessions ws
-            JOIN Subjects s ON s.Id = ws.SubjectId
-            WHERE ws.EndedByEndDate = 1
-              AND ws.EffectiveFrom <= $date
-              AND ws.EffectiveTo > $date
-              AND (s.IsArchived = 0 OR s.ArchivedOn > $date);
-            """;
-        command.Parameters.AddWithValue("$date", date);
-        return command.ExecuteScalar() as string;
-    }
-
-    // Puts sessions that were ended at this boundary back to how they were: they run until the next
-    // version of the same class starts, or with no end if there is none.
-    private static int ReopenEndedSessions(SqliteConnection connection, SqliteTransaction transaction, string boundary)
-    {
-        using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = """
-            UPDATE WeeklySessions
-            SET EndedByEndDate = 0,
-                EffectiveTo = (SELECT MIN(n.EffectiveFrom)
-                               FROM WeeklySessions n
-                               WHERE n.SubjectId = WeeklySessions.SubjectId
-                                 AND n.DayOfWeek = WeeklySessions.DayOfWeek
-                                 AND n.EffectiveFrom > WeeklySessions.EffectiveFrom)
-            WHERE EndedByEndDate = 1 AND EffectiveTo = $boundary;
-            """;
-        command.Parameters.AddWithValue("$boundary", boundary);
-        return command.ExecuteNonQuery();
     }
 
     private static string? FindNextStart(SqliteConnection connection, SqliteTransaction transaction,

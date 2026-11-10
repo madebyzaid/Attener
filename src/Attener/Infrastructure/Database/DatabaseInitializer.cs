@@ -5,7 +5,7 @@ namespace Attener.Infrastructure.Database;
 
 public sealed class DatabaseInitializer
 {
-    private const int SchemaVersion = 4;
+    private const int SchemaVersion = 5;
     private readonly string _databasePath;
 
     public DatabaseInitializer(string databasePath)
@@ -90,6 +90,12 @@ public sealed class DatabaseInitializer
         EnsureColumn(connection, "WeeklySessions", "EndedByEndDate", "INTEGER NOT NULL DEFAULT 0");
 
         MigrateAttendanceUniqueness(connection);
+        MigrateToSingleTimetable(connection);
+
+        // Version 5: attendance entered by hand (not from the timetable) is flagged so it can be
+        // told apart, edited and deleted. This comes after the table rebuild above on purpose,
+        // because the rebuild would drop the column.
+        EnsureColumn(connection, "AttendanceRecords", "IsManual", "INTEGER NOT NULL DEFAULT 0");
 
         using var versionCommand = connection.CreateCommand();
         versionCommand.CommandText = $"PRAGMA user_version = {SchemaVersion};";
@@ -142,6 +148,36 @@ public sealed class DatabaseInitializer
             CREATE INDEX IF NOT EXISTS IX_AttendanceRecords_Date
                 ON AttendanceRecords (AttendanceDate);
             """;
+        command.ExecuteNonQuery();
+        transaction.Commit();
+    }
+
+    // Version 5: the timetable no longer has "effective from" dates or end dates; every edit applies
+    // from today onward. Old data is tidied once so it follows that rule:
+    //  - versions that start after today are deleted (they could only come from old future-dated edits);
+    //  - classes that were set to stop on a day after today (end date, or cut short by one of those
+    //    deleted versions) run on again.
+    // Anything that already ended on or before today is history and is left exactly as it is.
+    private static void MigrateToSingleTimetable(SqliteConnection connection)
+    {
+        using var versionCommand = connection.CreateCommand();
+        versionCommand.CommandText = "PRAGMA user_version;";
+        var version = Convert.ToInt32(versionCommand.ExecuteScalar());
+        if (version >= 5)
+            return;
+
+        var today = DateTime.Today.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+        using var transaction = connection.BeginTransaction();
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            DELETE FROM WeeklySessions WHERE EffectiveFrom > $today;
+
+            UPDATE WeeklySessions
+            SET EffectiveTo = NULL, EndedByEndDate = 0
+            WHERE EffectiveTo IS NOT NULL AND EffectiveTo > $today;
+            """;
+        command.Parameters.AddWithValue("$today", today);
         command.ExecuteNonQuery();
         transaction.Commit();
     }

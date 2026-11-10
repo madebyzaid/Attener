@@ -91,7 +91,7 @@ public partial class CalendarView : UserControl
         // timetable classes by subject + start time (not by subject alone).
         var storedByClass = new Dictionary<(long SubjectId, string? Start), AttendanceEntry>();
         foreach (var entry in _attendance.GetAttendanceForDate(date, allowUnmarked: true))
-            storedByClass[(entry.SubjectId, entry.ScheduledStart)] = entry;
+            storedByClass[(entry.SubjectId, entry.IsManual ? $"manual-{entry.Id}" : entry.ScheduledStart)] = entry;
 
         var rows = new List<CalendarSessionRow>();
         var dayOfWeek = (int)selectedDate.DayOfWeek;
@@ -115,9 +115,11 @@ public partial class CalendarView : UserControl
         {
             rows.Add(new CalendarSessionRow(
                 record.SubjectName,
-                record.ScheduledStart is null || record.ScheduledEnd is null
-                    ? "Time unavailable"
-                    : $"{record.ScheduledStart}–{record.ScheduledEnd}",
+                record.IsManual
+                    ? $"Manual · {(record.ScheduledDurationMinutes / 60m).ToString("0.##", CultureInfo.InvariantCulture)} h"
+                    : record.ScheduledStart is null || record.ScheduledEnd is null
+                        ? "Time unavailable"
+                        : $"{record.ScheduledStart}–{record.ScheduledEnd}",
                 StatusLabel(record.Status), StatusLabel(record.Status)));
         }
 

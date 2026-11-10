@@ -29,11 +29,21 @@ public partial class TimetableView : UserControl
 
     private IReadOnlyList<SubjectSummary> _activeSubjects = [];
     private Dictionary<(int Day, int Hour), long> _assignments = [];
+    private Dictionary<long, string> _names = [];
+
+    // The timetable is edited for today onward only. Picking an older timetable from the history list
+    // shows how classes were scheduled back then, read-only.
+    private bool _readOnly;
+    private DateOnly _gridDate = Today;
+    private int _gridStart = TimetableSettingsRepository.DefaultStartHour;
+    private int _gridEnd = TimetableSettingsRepository.DefaultEndHour;
+    private bool _loadingHistory;
+
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
 
     public TimetableView()
     {
         InitializeComponent();
-        EffectiveDatePicker.SelectedDate = DateTime.Today;
         RefreshData();
     }
 
@@ -42,8 +52,55 @@ public partial class TimetableView : UserControl
         _activeSubjects = _subjects.GetSubjects(includeArchived: false);
         (_startHour, _endHour) = _hourSettings.GetHourRange();
         ShowHourRange();
+        LoadHistory();
+        ShowSelectedTimetable();
+    }
+
+    // Fills the list at the top: the current timetable first, then every earlier one, newest first.
+    private void LoadHistory()
+    {
+        var today = Today;
+        var history = _timetable.GetHistory();
+        var current = history.FirstOrDefault(period => period.Start <= today && (period.End is null || period.End > today));
+
+        var choices = new List<HistoryChoice>
+        {
+            new(null, current is null
+                ? "Current timetable (you can edit this)"
+                : $"Current timetable since {current.Start:dd MMM yyyy} (you can edit this)")
+        };
+        foreach (var period in history.Where(p => p.End is not null && p.End <= today).OrderByDescending(p => p.Start))
+            choices.Add(new HistoryChoice(period, $"{period.Start:dd MMM yyyy} to {period.LastDay:dd MMM yyyy}"));
+
+        _loadingHistory = true;
+        HistoryBox.ItemsSource = choices;
+        HistoryBox.SelectedIndex = 0;
+        _loadingHistory = false;
+    }
+
+    // Shows the timetable picked in the history list: today's (editable) or an older one (read-only).
+    private void ShowSelectedTimetable()
+    {
+        var choice = HistoryBox.SelectedItem as HistoryChoice;
+        _readOnly = choice?.Period is not null;
+        _gridDate = choice?.Period?.Start ?? Today;
+        StartHourPicker.IsEnabled = !_readOnly;
+        EndHourPicker.IsEnabled = !_readOnly;
+        HistoryNote.Text = _readOnly
+            ? "Read-only. This is how your classes were scheduled in that period."
+            : "Changes here apply from today onward. Earlier days are never changed.";
         BuildGrid();
-        ShowEndDate();
+    }
+
+    private void HistoryBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loadingHistory) return;
+        ShowSelectedTimetable();
+    }
+
+    private sealed record HistoryChoice(TimetableRepository.TimetablePeriod? Period, string Label)
+    {
+        public override string ToString() => Label;
     }
 
     private void ShowHourRange()
@@ -52,40 +109,15 @@ public partial class TimetableView : UserControl
         EndHourPicker.Time = new TimeOnly(_endHour, 0);
     }
 
-    // Shows the end date (if any) of the timetable that is in force on the "effective from" date.
-    private void ShowEndDate()
-    {
-        if (EffectiveDatePicker.SelectedDate is not DateTime selected) return;
-        var end = _timetable.GetEndDate(DateOnly.FromDateTime(selected));
-        EndDatePicker.SelectedDate = end?.ToDateTime(TimeOnly.MinValue);
-        EndDateStatus.Text = end is null ? "No end date" : $"Ends on {end:dd MMM yyyy}";
-    }
-
-    // Everything on this page works from the "Changes effective from" date. Without it nothing is
-    // changed, and the person is told why.
-    private bool TryGetStartDate(out DateOnly date)
-    {
-        if (EffectiveDatePicker.SelectedDate is DateTime selected)
-        {
-            date = DateOnly.FromDateTime(selected);
-            return true;
-        }
-
-        date = default;
-        MessageBox.Show("A start date is required. Pick the date these changes take effect first.", "Start date required",
-            MessageBoxButton.OK, MessageBoxImage.Information);
-        return false;
-    }
-
     // Loads every class of the day, including hours outside the visible range,
     // so editing a day never throws away classes that are currently hidden.
     private void LoadAssignments()
     {
         _assignments = [];
-        if (EffectiveDatePicker.SelectedDate is not DateTime selected) return;
-        var date = DateOnly.FromDateTime(selected);
-        foreach (var session in _timetable.GetWeeklySessions(date))
+        _names = [];
+        foreach (var session in _timetable.GetWeeklySessions(_gridDate))
         {
+            _names[session.SubjectId] = session.SubjectName;
             var start = TimeOnly.Parse(session.StartTime);
             var end = TimeOnly.Parse(session.EndTime);
             var first = Math.Max(DayStartHour, start.Hour);
@@ -98,19 +130,30 @@ public partial class TimetableView : UserControl
     private void BuildGrid()
     {
         LoadAssignments();
+
+        // An older timetable can have classes outside the hours currently shown (they were only cropped
+        // from a later date), so a read-only view widens the grid to show all of them.
+        _gridStart = _startHour;
+        _gridEnd = _endHour;
+        if (_readOnly && _assignments.Count > 0)
+        {
+            _gridStart = Math.Min(_gridStart, _assignments.Keys.Min(key => key.Hour));
+            _gridEnd = Math.Max(_gridEnd, _assignments.Keys.Max(key => key.Hour) + 1);
+        }
+
         TimetableGrid.Children.Clear(); TimetableGrid.RowDefinitions.Clear(); TimetableGrid.ColumnDefinitions.Clear();
         TimetableGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
-        for (var hour = _startHour; hour < _endHour; hour++) TimetableGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 78 });
+        for (var hour = _gridStart; hour < _gridEnd; hour++) TimetableGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 78 });
         TimetableGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(42) });
         for (var day = 0; day < 7; day++) TimetableGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(62) });
         AddCell("Day", 0, 0, true);
-        for (var hour = _startHour; hour < _endHour; hour++) AddCell($"{hour:00}:00", hour - _startHour + 1, 0, true);
+        for (var hour = _gridStart; hour < _gridEnd; hour++) AddCell($"{hour:00}:00", hour - _gridStart + 1, 0, true);
 
         for (var day = 0; day < 7; day++)
         {
             AddCell(Days[day], 0, day + 1, true);
-            var hour = _startHour;
-            while (hour < _endHour)
+            var hour = _gridStart;
+            while (hour < _gridEnd)
             {
                 _assignments.TryGetValue((day, hour), out var id);
 
@@ -118,7 +161,7 @@ public partial class TimetableView : UserControl
                 var span = 1;
                 if (id != 0)
                 {
-                    while (hour + span < _endHour && _assignments.GetValueOrDefault((day, hour + span)) == id)
+                    while (hour + span < _gridEnd && _assignments.GetValueOrDefault((day, hour + span)) == id)
                         span++;
                 }
 
@@ -130,7 +173,7 @@ public partial class TimetableView : UserControl
 
     private void AddHourButton(int day, int firstHour, int span, long id)
     {
-        var name = _activeSubjects.FirstOrDefault(s => s.Id == id)?.Name ?? "";
+        var name = _names.GetValueOrDefault(id) ?? "";
         var button = new Button
         {
             Content = name,
@@ -140,16 +183,16 @@ public partial class TimetableView : UserControl
             Background = id == 0 ? (Brush)FindResource("SurfaceBackgroundBrush") : (Brush)FindResource("AccentBrush"),
             Foreground = id == 0 ? (Brush)FindResource("SecondaryTextBrush") : Brushes.Black,
             BorderThickness = new Thickness(0),
-            Cursor = Cursors.Hand,
+            Cursor = _readOnly ? Cursors.Arrow : Cursors.Hand,
             ToolTip = $"{Days[day]} {firstHour:00}:00–{firstHour + span:00}:00"
         };
-        button.Click += Cell_Click;
+        if (!_readOnly) button.Click += Cell_Click;
 
         // The container holds the cell button, plus a hover-only "−" button for assigned blocks.
         var container = new Grid { Margin = new Thickness(2), Background = Brushes.Transparent };
         container.Children.Add(button);
 
-        if (id != 0)
+        if (id != 0 && !_readOnly)
         {
             var remove = new Button
             {
@@ -194,7 +237,7 @@ public partial class TimetableView : UserControl
             container.Children.Add(remove);
         }
 
-        Grid.SetColumn(container, firstHour - _startHour + 1);
+        Grid.SetColumn(container, firstHour - _gridStart + 1);
         Grid.SetColumnSpan(container, span);
         Grid.SetRow(container, day + 1);
         TimetableGrid.Children.Add(container);
@@ -209,8 +252,8 @@ public partial class TimetableView : UserControl
 
     private void Cell_Click(object sender, RoutedEventArgs e)
     {
+        if (_readOnly) return;
         if (sender is not Button { Tag: ValueTuple<int, int, int> block } button) return;
-        if (!TryGetStartDate(out _)) return;
         var (day, firstHour, span) = block;
 
         // For a merged block, work out which hour of it was clicked from the mouse position.
@@ -233,8 +276,8 @@ public partial class TimetableView : UserControl
 
     private void RemoveBlock_Click(object sender, RoutedEventArgs e)
     {
+        if (_readOnly) return;
         if (sender is not Button { Tag: ValueTuple<int, int, int> block }) return;
-        if (!TryGetStartDate(out _)) return;
         var (day, firstHour, span) = block;
         // Remove every hour that belongs to this block, not just one.
         ChangeHours(day, Enumerable.Range(firstHour, span).ToArray(), null);
@@ -242,18 +285,16 @@ public partial class TimetableView : UserControl
 
     private void ChangeHours(int day, int[] hours, long? subjectId)
     {
-        if (EffectiveDatePicker.SelectedDate is not DateTime effective) return;
+        if (_readOnly) return;
         foreach (var hour in hours)
         {
             if (subjectId is null) _assignments.Remove((day, hour)); else _assignments[(day, hour)] = subjectId.Value;
         }
         try
         {
-            var date = DateOnly.FromDateTime(effective);
+            // Edits always apply from today onward. Earlier days keep the timetable they had.
+            var date = Today;
             var dayOfWeek = (int)(day == 6 ? DayOfWeek.Sunday : (DayOfWeek)(day + 1));
-
-            // Read the end date BEFORE removing anything, so the rewritten classes keep it.
-            var lastDay = _timetable.GetEndDate(date);
 
             var existing = _timetable.GetWeeklySessions(date).Where(s => s.DayOfWeek == dayOfWeek).ToArray();
             foreach (var existingSubject in existing.Select(s => s.SubjectId).Distinct()) _timetable.RemoveWeeklySession(existingSubject, dayOfWeek, date);
@@ -265,9 +306,10 @@ public partial class TimetableView : UserControl
                 if (allHours[i].Id == 0) { i++; continue; }
                 var id = allHours[i].Id; var start = allHours[i].Hour; var end = start + 1; i++;
                 while (i < allHours.Length && allHours[i].Id == id) { end++; i++; }
-                _timetable.SaveWeeklySession(id, dayOfWeek, new TimeOnly(start, 0), new TimeOnly(end, 0), date, lastDay);
+                _timetable.SaveWeeklySession(id, dayOfWeek, new TimeOnly(start, 0), new TimeOnly(end, 0), date);
             }
             SyncAttendance(date);
+            LoadHistory();
             BuildGrid();
         }
         catch (Exception ex) { MessageBox.Show($"Could not update this day. {ex.Message}", "Timetable update failed", MessageBoxButton.OK, MessageBoxImage.Error); BuildGrid(); }
@@ -288,61 +330,6 @@ public partial class TimetableView : UserControl
         _attendance.GenerateMissingBetween(start, DateOnly.FromDateTime(DateTime.Today));
     }
 
-    // Saves the end date. An empty end date means "no end date". It needs the date the changes take effect.
-    private void SaveEndDate_Click(object sender, RoutedEventArgs e)
-    {
-        if (!TryGetStartDate(out var effectiveDate)) return;
-
-        if (EndDatePicker.SelectedDate is not DateTime end)
-        {
-            RemoveEndDate(effectiveDate);
-            return;
-        }
-
-        var lastDay = DateOnly.FromDateTime(end);
-        if (lastDay < effectiveDate)
-        {
-            MessageBox.Show($"The end date can't be before the date these changes take effect ({effectiveDate:dd MMM yyyy}).",
-                "Invalid end date", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
-        try
-        {
-            var changed = _timetable.SetEndDate(effectiveDate, lastDay);
-            SyncAttendance(effectiveDate);
-            if (changed == 0)
-            {
-                MessageBox.Show("No classes run from this date onward, so there is nothing to end.",
-                    "Nothing to end", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Could not set the end date. {ex.Message}", "End date failed",
-                MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-
-        BuildGrid();
-        ShowEndDate();
-    }
-
-    private void RemoveEndDate(DateOnly effectiveDate)
-    {
-        try
-        {
-            _timetable.ClearEndDate(effectiveDate);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Could not remove the end date. {ex.Message}", "End date failed",
-                MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-
-        BuildGrid();
-        ShowEndDate();
-    }
-
     private void HourPicker_TimeCommitted(object? sender, EventArgs e) => ApplyHours();
 
     // Guards against the message boxes below triggering another commit while they are open.
@@ -352,7 +339,7 @@ public partial class TimetableView : UserControl
     // shortened or removed from the selected date onward; earlier dates and attendance are not touched.
     private void ApplyHours()
     {
-        if (_applyingHours) return;
+        if (_applyingHours || _readOnly) return;
         _applyingHours = true;
         try
         {
@@ -376,11 +363,8 @@ public partial class TimetableView : UserControl
                 return;
             }
 
-            if (!TryGetStartDate(out var cropFrom))
-            {
-                ShowHourRange();
-                return;
-            }
+            // Like every other change here, this applies from today onward.
+            var cropFrom = Today;
 
             try
             {
@@ -415,21 +399,12 @@ public partial class TimetableView : UserControl
             _startHour = start;
             _endHour = end;
             ShowHourRange();
+            LoadHistory();
             BuildGrid();
         }
         finally
         {
             _applyingHours = false;
         }
-    }
-
-    private void EffectiveDatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (!IsLoaded) return;
-        // An empty date has no timetable to show. Leave the grid as it is instead of blanking it,
-        // so it does not look like the classes were deleted.
-        if (EffectiveDatePicker.SelectedDate is null) return;
-        BuildGrid();
-        ShowEndDate();
     }
 }

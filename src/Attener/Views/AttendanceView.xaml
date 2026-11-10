@@ -80,6 +80,11 @@
                                       Tag="{StaticResource CancelledBrush}"
                                       IsChecked="{Binding IsCancelled, Mode=OneWay}"
                                       IsEnabled="{Binding CanEdit}" Click="Cancelled_Click" />
+                        <Button Content="Delete" Click="DeleteManual_Click"
+                                Visibility="{Binding DeleteVisibility}"
+                                Margin="14,0,0,0" Padding="14,0" Height="38"
+                                Foreground="{StaticResource SecondaryTextBrush}"
+                                Background="#292E39" BorderThickness="0" Cursor="Hand" />
                     </StackPanel>
                 </Grid>
             </Border>
@@ -96,7 +101,7 @@
 
         <StackPanel>
             <TextBlock Text="Attendance" FontSize="28" FontWeight="SemiBold" />
-            <TextBlock Text="Mark each scheduled class once for the selected date."
+            <TextBlock Text="Mark each scheduled class once for the selected date, or add an entry by hand."
                        FontSize="14" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,7,0,0" />
         </StackPanel>
 
@@ -105,6 +110,10 @@
                     Padding="13,7" Margin="0,0,8,0" BorderThickness="0" Cursor="Hand" />
             <Button x:Name="PendingButton" Content="Pending" Click="ShowPending_Click"
                     Padding="13,7" BorderThickness="0" Cursor="Hand" />
+            <Button Content="+ Add entry" Click="AddManual_Click" Margin="16,0,0,0"
+                    Padding="14,7" Background="{StaticResource AccentBrush}" Foreground="#111318"
+                    FontWeight="SemiBold" BorderThickness="0" Cursor="Hand"
+                    ToolTip="Record attendance by hand for any date" />
         </StackPanel>
 
         <Border x:Name="DateControls" Grid.Row="2" Background="{StaticResource SurfaceBackgroundBrush}"

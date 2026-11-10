@@ -13,7 +13,9 @@ public sealed record AttendanceEntry(
     int ScheduledDurationMinutes,
     AttendanceStatus? Status,
     int? ActualDurationMinutes,
-    bool IsSaved);
+    bool IsSaved,
+    long Id = 0,
+    bool IsManual = false);
 
 public sealed class AttendanceRepository
 {
@@ -78,7 +80,7 @@ public sealed class AttendanceRepository
         {
             command.CommandText = """
                 SELECT a.SubjectId, s.Name, a.AttendanceDate, a.ScheduledStart, a.ScheduledEnd,
-                       a.ScheduledDurationMinutes, a.Status, a.ActualDurationMinutes, 1
+                       a.ScheduledDurationMinutes, a.Status, a.ActualDurationMinutes, 1, a.Id, a.IsManual
                 FROM AttendanceRecords a
                 JOIN Subjects s ON s.Id = a.SubjectId
                 WHERE a.AttendanceDate = $date
@@ -91,7 +93,7 @@ public sealed class AttendanceRepository
                 SELECT ws.SubjectId, s.Name, $date, ws.StartTime, ws.EndTime,
                        (CAST(substr(ws.EndTime, 1, 2) AS INTEGER) * 60 + CAST(substr(ws.EndTime, 4, 2) AS INTEGER))
                        - (CAST(substr(ws.StartTime, 1, 2) AS INTEGER) * 60 + CAST(substr(ws.StartTime, 4, 2) AS INTEGER)),
-                       NULL, NULL, 0
+                       NULL, NULL, 0, 0, 0
                 FROM WeeklySessions ws
                 JOIN Subjects s ON s.Id = ws.SubjectId
                 WHERE ws.DayOfWeek = $dayOfWeek
@@ -115,7 +117,8 @@ public sealed class AttendanceRepository
                 reader.GetInt32(5),
                 reader.IsDBNull(6) ? null : ParseStatus(reader.GetString(6)),
                 reader.IsDBNull(7) ? null : reader.GetInt32(7),
-                reader.GetInt64(8) == 1));
+                reader.GetInt64(8) == 1,
+                reader.GetInt64(9), reader.GetInt64(10) == 1));
         }
         return entries;
     }
@@ -128,7 +131,7 @@ public sealed class AttendanceRepository
         using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT a.SubjectId, s.Name, a.AttendanceDate, a.ScheduledStart, a.ScheduledEnd,
-                   a.ScheduledDurationMinutes, a.Status, a.ActualDurationMinutes, 1
+                   a.ScheduledDurationMinutes, a.Status, a.ActualDurationMinutes, 1, a.Id, a.IsManual
             FROM AttendanceRecords a
             JOIN Subjects s ON s.Id = a.SubjectId
             WHERE a.Status = 'Not Marked' AND a.AttendanceDate <= $throughDate
@@ -145,7 +148,8 @@ public sealed class AttendanceRepository
                 reader.IsDBNull(3) ? null : reader.GetString(3),
                 reader.IsDBNull(4) ? null : reader.GetString(4),
                 reader.GetInt32(5), ParseStatus(reader.GetString(6)),
-                reader.IsDBNull(7) ? null : reader.GetInt32(7), true));
+                reader.IsDBNull(7) ? null : reader.GetInt32(7), true,
+                reader.GetInt64(9), reader.GetInt64(10) == 1));
         }
         return entries;
     }
@@ -154,6 +158,18 @@ public sealed class AttendanceRepository
         using var connection = new SqliteConnection(_connectionString);
         connection.Open();
         using var command = connection.CreateCommand();
+
+        // A hand-entered record has no start time, so the "same class" rule below cannot find it.
+        // It is changed by its own id instead.
+        if (entry.IsManual)
+        {
+            command.CommandText = "UPDATE AttendanceRecords SET Status = $status WHERE Id = $id AND IsManual = 1;";
+            command.Parameters.AddWithValue("$status", FormatStatus(status));
+            command.Parameters.AddWithValue("$id", entry.Id);
+            command.ExecuteNonQuery();
+            return;
+        }
+
         command.CommandText = """
             INSERT INTO AttendanceRecords (
                 SubjectId, AttendanceDate, Status, ScheduledStart, ScheduledEnd,
@@ -176,6 +192,44 @@ public sealed class AttendanceRepository
         // Actual duration is no longer edited anywhere: a saved record always counts its full scheduled time.
         command.Parameters.AddWithValue("$actualMinutes", DBNull.Value);
         command.ExecuteNonQuery();
+    }
+
+    // Adds attendance the person typed in by hand: any date (past, today or future) for an existing
+    // subject, with the number of minutes they chose. It has no start or end time and is not linked to
+    // the timetable. The same subject can have several of these on one day.
+    public void AddManualEntry(long subjectId, DateOnly date, AttendanceStatus status, int durationMinutes)
+    {
+        if (durationMinutes <= 0)
+            throw new ArgumentException("The duration must be more than zero.");
+        if (status == AttendanceStatus.NotMarked || status == AttendanceStatus.NoClass)
+            throw new ArgumentException("Choose Present, Absent or Cancelled.");
+
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO AttendanceRecords (
+                SubjectId, AttendanceDate, Status, ScheduledStart, ScheduledEnd,
+                ScheduledDurationMinutes, ActualDurationMinutes, IsManual
+            )
+            VALUES ($subjectId, $date, $status, NULL, NULL, $minutes, NULL, 1);
+            """;
+        command.Parameters.AddWithValue("$subjectId", subjectId);
+        command.Parameters.AddWithValue("$date", FormatDate(date));
+        command.Parameters.AddWithValue("$status", FormatStatus(status));
+        command.Parameters.AddWithValue("$minutes", durationMinutes);
+        command.ExecuteNonQuery();
+    }
+
+    // Deletes one hand-entered record. Timetable records cannot be deleted this way.
+    public bool DeleteManualEntry(long id)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "DELETE FROM AttendanceRecords WHERE Id = $id AND IsManual = 1;";
+        command.Parameters.AddWithValue("$id", id);
+        return command.ExecuteNonQuery() == 1;
     }
 
     // How many records are dated before this day, and how many of them already have a mark
@@ -217,6 +271,7 @@ public sealed class AttendanceRepository
         command.CommandText = """
             DELETE FROM AttendanceRecords
             WHERE Status = 'Not Marked'
+              AND IsManual = 0
               AND AttendanceDate >= $fromDate
               AND NOT EXISTS (
                   SELECT 1 FROM WeeklySessions ws
