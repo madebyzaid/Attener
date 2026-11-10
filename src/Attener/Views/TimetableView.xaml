@@ -21,23 +21,18 @@
     <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0" VerticalAlignment="Center">
       <TextBlock Text="Ends on" Width="170" VerticalAlignment="Center"/>
       <DatePicker x:Name="EndDatePicker" Width="190" Height="38"/>
-      <Button Content="Set end date" Margin="12,0,0,0" Padding="16,0" Height="38"
+      <Button x:Name="SaveEndDateButton" Content="Save" Margin="12,0,0,0" Padding="16,0" Height="38"
               Background="{StaticResource AccentBrush}" Foreground="#111318"
-              FontWeight="SemiBold" BorderThickness="0" Cursor="Hand" Click="SetEndDate_Click"/>
-      <Button x:Name="ClearEndButton" Content="No end date" Margin="8,0,0,0" Padding="16,0" Height="38"
-              Background="#292E39" Foreground="{StaticResource SecondaryTextBrush}"
-              BorderThickness="0" Cursor="Hand" Click="ClearEndDate_Click"/>
+              FontWeight="SemiBold" BorderThickness="0" Cursor="Hand" Click="SaveEndDate_Click"
+              ToolTip="Leave the date empty to have no end date"/>
     </StackPanel>
 
     <!-- Visible hours -->
     <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,10,0,12" VerticalAlignment="Center">
       <TextBlock Text="Hours shown" Width="170" VerticalAlignment="Center"/>
-      <local:ClockTimePicker x:Name="StartHourPicker" Width="120" Height="38" EnterPressed="HourPicker_EnterPressed"/>
+      <local:ClockTimePicker x:Name="StartHourPicker" Width="120" Height="38" TimeCommitted="HourPicker_TimeCommitted"/>
       <TextBlock Text="to" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center" Margin="10,0"/>
-      <local:ClockTimePicker x:Name="EndHourPicker" Width="120" Height="38" EnterPressed="HourPicker_EnterPressed"/>
-      <Button Content="Apply" Margin="12,0,0,0" Padding="16,0" Height="38"
-              Background="{StaticResource AccentBrush}" Foreground="#111318"
-              FontWeight="SemiBold" BorderThickness="0" Cursor="Hand" Click="ApplyHours_Click"/>
+      <local:ClockTimePicker x:Name="EndHourPicker" Width="120" Height="38" TimeCommitted="HourPicker_TimeCommitted"/>
     </StackPanel>
 
     <ScrollViewer Grid.Row="4" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"><Grid x:Name="TimetableGrid" MinWidth="1080"/></ScrollViewer>

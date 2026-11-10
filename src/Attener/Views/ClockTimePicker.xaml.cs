@@ -30,6 +30,12 @@ public partial class ClockTimePicker : UserControl
 
     public event EventHandler? EnterPressed;
 
+    // Raised when the person finishes choosing a time: Enter, OK on the clock, or leaving the box.
+    // It is not raised while they are still typing, so half-typed times like "1" never count.
+    // It can fire more than once for the same time (Enter, then leaving the box), so handlers
+    // should ignore a time that has not changed.
+    public event EventHandler? TimeCommitted;
+
     public bool ShowMinutes { get; set; }
 
     public ClockTimePicker()
@@ -74,9 +80,13 @@ public partial class ClockTimePicker : UserControl
 
     private void TimeBox_KeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter)
-            EnterPressed?.Invoke(this, EventArgs.Empty);
+        if (e.Key != Key.Enter) return;
+        EnterPressed?.Invoke(this, EventArgs.Empty);
+        TimeCommitted?.Invoke(this, EventArgs.Empty);
     }
+
+    private void TimeBox_LostFocus(object sender, RoutedEventArgs e) =>
+        TimeCommitted?.Invoke(this, EventArgs.Empty);
 
     private void OpenButton_Click(object sender, RoutedEventArgs e)
     {
@@ -92,6 +102,7 @@ public partial class ClockTimePicker : UserControl
     {
         Time = new TimeOnly(_hour, ShowMinutes ? _minute : 0);
         DialPopup.IsOpen = false;
+        TimeCommitted?.Invoke(this, EventArgs.Empty);
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e) => DialPopup.IsOpen = false;

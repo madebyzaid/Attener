@@ -247,6 +247,127 @@ public sealed class TimetableRepository
         return deleted + closed > 0;
     }
 
+    // How many weekly classes, from effectiveOn onward, do not fit inside startHour..endHour.
+    public int CountOutsideHours(DateOnly effectiveOn, int startHour, int endHour)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+        return ReadOutsideHours(connection, null, FormatDate(effectiveOn), startHour * 60, endHour * 60).Count;
+    }
+
+    // Crops every weekly class that runs on or after effectiveOn so it fits inside startHour..endHour:
+    // a class that crosses a boundary is shortened, a class completely outside is removed.
+    // Nothing before effectiveOn changes. A class that started earlier is closed on effectiveOn and
+    // carries on from that day with its cropped times, exactly like an ordinary timetable edit.
+    // Returns how many classes were cropped or removed.
+    public int CropToHours(DateOnly effectiveOn, int startHour, int endHour)
+    {
+        if (startHour < 0 || endHour > 23 || startHour >= endHour)
+            throw new ArgumentException("The start hour must be earlier than the end hour, between 0 and 23.");
+
+        var date = FormatDate(effectiveOn);
+        var fromMinutes = startHour * 60;
+        var toMinutes = endHour * 60;
+
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+
+        var rows = ReadOutsideHours(connection, transaction, date, fromMinutes, toMinutes);
+        foreach (var row in rows)
+        {
+            var newStart = Math.Max(row.StartMinutes, fromMinutes);
+            var newEnd = Math.Min(row.EndMinutes, toMinutes);
+            var stillHasHours = newStart < newEnd;
+
+            if (string.CompareOrdinal(row.EffectiveFrom, date) >= 0)
+            {
+                // This version starts on or after the chosen date, so it can be changed in place.
+                using var change = connection.CreateCommand();
+                change.Transaction = transaction;
+                if (stillHasHours)
+                {
+                    change.CommandText = "UPDATE WeeklySessions SET StartTime = $start, EndTime = $end WHERE Id = $id;";
+                    change.Parameters.AddWithValue("$start", FormatMinutes(newStart));
+                    change.Parameters.AddWithValue("$end", FormatMinutes(newEnd));
+                }
+                else
+                {
+                    change.CommandText = "DELETE FROM WeeklySessions WHERE Id = $id;";
+                }
+                change.Parameters.AddWithValue("$id", row.Id);
+                change.ExecuteNonQuery();
+                continue;
+            }
+
+            // This version started before the chosen date: keep its earlier days exactly as they were.
+            using (var close = connection.CreateCommand())
+            {
+                close.Transaction = transaction;
+                close.CommandText = "UPDATE WeeklySessions SET EffectiveTo = $date, EndedByEndDate = 0 WHERE Id = $id;";
+                close.Parameters.AddWithValue("$date", date);
+                close.Parameters.AddWithValue("$id", row.Id);
+                close.ExecuteNonQuery();
+            }
+
+            if (!stillHasHours) continue;
+
+            using var insert = connection.CreateCommand();
+            insert.Transaction = transaction;
+            insert.CommandText = """
+                INSERT INTO WeeklySessions
+                    (SubjectId, DayOfWeek, StartTime, EndTime, EffectiveFrom, EffectiveTo, EndedByEndDate)
+                VALUES ($subjectId, $dayOfWeek, $start, $end, $from, $to, $ended);
+                """;
+            insert.Parameters.AddWithValue("$subjectId", row.SubjectId);
+            insert.Parameters.AddWithValue("$dayOfWeek", row.DayOfWeek);
+            insert.Parameters.AddWithValue("$start", FormatMinutes(newStart));
+            insert.Parameters.AddWithValue("$end", FormatMinutes(newEnd));
+            insert.Parameters.AddWithValue("$from", date);
+            insert.Parameters.AddWithValue("$to", (object?)row.EffectiveTo ?? DBNull.Value);
+            insert.Parameters.AddWithValue("$ended", row.EndedByEndDate);
+            insert.ExecuteNonQuery();
+        }
+
+        transaction.Commit();
+        return rows.Count;
+    }
+
+    private sealed record OutsideHoursRow(long Id, long SubjectId, int DayOfWeek, int StartMinutes, int EndMinutes,
+        string EffectiveFrom, string? EffectiveTo, int EndedByEndDate);
+
+    // The classes that run on or after this date (the same subjects the timetable shows) and reach
+    // outside fromMinutes..toMinutes.
+    private static List<OutsideHoursRow> ReadOutsideHours(SqliteConnection connection, SqliteTransaction? transaction,
+        string date, int fromMinutes, int toMinutes)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            SELECT ws.Id, ws.SubjectId, ws.DayOfWeek, ws.StartTime, ws.EndTime,
+                   ws.EffectiveFrom, ws.EffectiveTo, ws.EndedByEndDate
+            FROM WeeklySessions ws
+            JOIN Subjects s ON s.Id = ws.SubjectId
+            WHERE (s.IsArchived = 0 OR s.ArchivedOn > $date)
+              AND (ws.EffectiveTo IS NULL OR ws.EffectiveTo > $date);
+            """;
+        command.Parameters.AddWithValue("$date", date);
+
+        var rows = new List<OutsideHoursRow>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var start = ParseMinutes(reader.GetString(3));
+            var end = ParseMinutes(reader.GetString(4));
+            if (start >= fromMinutes && end <= toMinutes) continue;
+
+            rows.Add(new OutsideHoursRow(
+                reader.GetInt64(0), reader.GetInt64(1), reader.GetInt32(2), start, end,
+                reader.GetString(5), reader.IsDBNull(6) ? null : reader.GetString(6), reader.GetInt32(7)));
+        }
+        return rows;
+    }
+
     // The earliest "ended by an end date" stop among the classes running on this date (exclusive end,
     // so it is the day AFTER the last class day). Null when the timetable has no end date.
     private static string? ReadEndBoundary(SqliteConnection connection, SqliteTransaction? transaction, string date)
@@ -306,4 +427,10 @@ public sealed class TimetableRepository
     private static string FormatDate(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     private static DateOnly ParseDate(string value) => DateOnly.ParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture);
     private static string FormatTime(TimeOnly time) => time.ToString("HH:mm", CultureInfo.InvariantCulture);
+    private static string FormatMinutes(int minutes) => FormatTime(new TimeOnly(minutes / 60, minutes % 60));
+    private static int ParseMinutes(string value)
+    {
+        var time = TimeOnly.ParseExact(value, "HH:mm", CultureInfo.InvariantCulture);
+        return time.Hour * 60 + time.Minute;
+    }
 }

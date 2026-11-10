@@ -19,7 +19,8 @@ public partial class TimetableView : UserControl
     private const int DayStartHour = 0;
     private const int DayEndHour = TimetableSettingsRepository.LatestEndHour;
 
-    // The hours currently SHOWN in the grid (user-chosen). Classes outside this range are kept, just hidden.
+    // The hours currently SHOWN in the grid (user-chosen). Changing them crops classes from the selected date onward;
+    // classes on earlier dates that lie outside the range are kept, just hidden.
     private int _startHour = TimetableSettingsRepository.DefaultStartHour;
     private int _endHour = TimetableSettingsRepository.DefaultEndHour;
 
@@ -55,7 +56,22 @@ public partial class TimetableView : UserControl
         var end = _timetable.GetEndDate(DateOnly.FromDateTime(selected));
         EndDatePicker.SelectedDate = end?.ToDateTime(TimeOnly.MinValue);
         EndDateStatus.Text = end is null ? "No end date" : $"Ends on {end:dd MMM yyyy}";
-        ClearEndButton.IsEnabled = end is not null;
+    }
+
+    // Everything on this page works from the "Changes effective from" date. Without it nothing is
+    // changed, and the person is told why.
+    private bool TryGetStartDate(out DateOnly date)
+    {
+        if (EffectiveDatePicker.SelectedDate is DateTime selected)
+        {
+            date = DateOnly.FromDateTime(selected);
+            return true;
+        }
+
+        date = default;
+        MessageBox.Show("A start date is required. Pick the date these changes take effect first.", "Start date required",
+            MessageBoxButton.OK, MessageBoxImage.Information);
+        return false;
     }
 
     // Loads every class of the day, including hours outside the visible range,
@@ -191,6 +207,7 @@ public partial class TimetableView : UserControl
     private void Cell_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: ValueTuple<int, int, int> block } button) return;
+        if (!TryGetStartDate(out _)) return;
         var (day, firstHour, span) = block;
 
         // For a merged block, work out which hour of it was clicked from the mouse position.
@@ -214,6 +231,7 @@ public partial class TimetableView : UserControl
     private void RemoveBlock_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: ValueTuple<int, int, int> block }) return;
+        if (!TryGetStartDate(out _)) return;
         var (day, firstHour, span) = block;
         // Remove every hour that belongs to this block, not just one.
         ChangeHours(day, Enumerable.Range(firstHour, span).ToArray(), null);
@@ -251,17 +269,17 @@ public partial class TimetableView : UserControl
         catch (Exception ex) { MessageBox.Show($"Could not update this day. {ex.Message}", "Timetable update failed", MessageBoxButton.OK, MessageBoxImage.Error); BuildGrid(); }
     }
 
-    private void SetEndDate_Click(object sender, RoutedEventArgs e)
+    // Saves the end date. An empty end date means "no end date". It needs the date the changes take effect.
+    private void SaveEndDate_Click(object sender, RoutedEventArgs e)
     {
-        if (EffectiveDatePicker.SelectedDate is not DateTime effective) return;
+        if (!TryGetStartDate(out var effectiveDate)) return;
+
         if (EndDatePicker.SelectedDate is not DateTime end)
         {
-            MessageBox.Show("Choose the last day of this timetable first.", "End date required",
-                MessageBoxButton.OK, MessageBoxImage.Information);
+            RemoveEndDate(effectiveDate);
             return;
         }
 
-        var effectiveDate = DateOnly.FromDateTime(effective);
         var lastDay = DateOnly.FromDateTime(end);
         if (lastDay < effectiveDate)
         {
@@ -289,12 +307,11 @@ public partial class TimetableView : UserControl
         ShowEndDate();
     }
 
-    private void ClearEndDate_Click(object sender, RoutedEventArgs e)
+    private void RemoveEndDate(DateOnly effectiveDate)
     {
-        if (EffectiveDatePicker.SelectedDate is not DateTime effective) return;
         try
         {
-            _timetable.ClearEndDate(DateOnly.FromDateTime(effective));
+            _timetable.ClearEndDate(effectiveDate);
         }
         catch (Exception ex)
         {
@@ -306,38 +323,91 @@ public partial class TimetableView : UserControl
         ShowEndDate();
     }
 
-    private void ApplyHours_Click(object sender, RoutedEventArgs e) => ApplyHours();
+    private void HourPicker_TimeCommitted(object? sender, EventArgs e) => ApplyHours();
 
-    private void HourPicker_EnterPressed(object? sender, EventArgs e) => ApplyHours();
+    // Guards against the message boxes below triggering another commit while they are open.
+    private bool _applyingHours;
 
+    // Changing the hours takes effect straight away. Classes that fall outside the new hours are
+    // shortened or removed from the selected date onward; earlier dates and attendance are not touched.
     private void ApplyHours()
     {
-        if (!StartHourPicker.TryGetTime(out var startTime) || !EndHourPicker.TryGetTime(out var endTime))
+        if (_applyingHours) return;
+        _applyingHours = true;
+        try
         {
-            MessageBox.Show("Enter whole hours, for example 8 or 08:00, or pick them on the clock.", "Invalid hours",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
+            if (!StartHourPicker.TryGetTime(out var startTime) || !EndHourPicker.TryGetTime(out var endTime))
+            {
+                MessageBox.Show("Enter whole hours, for example 8 or 08:00, or pick them on the clock.", "Invalid hours",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowHourRange();
+                return;
+            }
 
-        var start = startTime.Hour;
-        var end = endTime.Hour;
-        if (start >= end)
+            var start = startTime.Hour;
+            var end = endTime.Hour;
+            if (start == _startHour && end == _endHour) return;
+
+            if (start >= end)
+            {
+                MessageBox.Show("The start must be earlier than the end, between 00:00 and 23:00.", "Invalid hours",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowHourRange();
+                return;
+            }
+
+            if (!TryGetStartDate(out var cropFrom))
+            {
+                ShowHourRange();
+                return;
+            }
+
+            try
+            {
+                var outside = _timetable.CountOutsideHours(cropFrom, start, end);
+                if (outside > 0)
+                {
+                    var answer = MessageBox.Show(
+                        $"{outside} weekly {(outside == 1 ? "class falls" : "classes fall")} outside {start:00}:00 to {end:00}:00. " +
+                        $"Continuing will shorten or remove {(outside == 1 ? "it" : "them")} from {cropFrom:dd MMM yyyy} onward.\n\n" +
+                        "Earlier dates and attendance records are not changed. This cannot be undone.\n\nContinue?",
+                        "Remove classes outside these hours?", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                    if (answer != MessageBoxResult.Yes)
+                    {
+                        ShowHourRange();
+                        return;
+                    }
+                }
+
+                _timetable.CropToHours(cropFrom, start, end);
+                _hourSettings.SaveHourRange(start, end);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Could not change the hours. {ex.Message}", "Hours not changed",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowHourRange();
+                BuildGrid();
+                return;
+            }
+
+            _startHour = start;
+            _endHour = end;
+            ShowHourRange();
+            BuildGrid();
+        }
+        finally
         {
-            MessageBox.Show("The start must be earlier than the end, between 00:00 and 23:00.", "Invalid hours",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
+            _applyingHours = false;
         }
-
-        _hourSettings.SaveHourRange(start, end);
-        _startHour = start;
-        _endHour = end;
-        ShowHourRange();
-        BuildGrid();
     }
 
     private void EffectiveDatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!IsLoaded) return;
+        // An empty date has no timetable to show. Leave the grid as it is instead of blanking it,
+        // so it does not look like the classes were deleted.
+        if (EffectiveDatePicker.SelectedDate is null) return;
         BuildGrid();
         ShowEndDate();
     }

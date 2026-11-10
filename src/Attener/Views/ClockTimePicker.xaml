@@ -24,7 +24,7 @@
                 <TextBox x:Name="TimeBox" BorderThickness="0" Background="Transparent" Padding="10,0"
                          VerticalContentAlignment="Center" TextAlignment="Center"
                          ToolTip="Type a time such as 8 or 08:00, or use the clock"
-                         KeyDown="TimeBox_KeyDown" />
+                         KeyDown="TimeBox_KeyDown" LostFocus="TimeBox_LostFocus" />
                 <Button Grid.Column="1" Width="34" Margin="3" BorderThickness="0" Background="Transparent"
                         Foreground="{StaticResource SecondaryTextBrush}" Cursor="Hand" Focusable="False"
                         ToolTip="Pick on a clock" Click="OpenButton_Click">
