@@ -5,3 +5,4 @@
 *.suo
 *.exe
 *.patch
+*_wpftmp.csproj
