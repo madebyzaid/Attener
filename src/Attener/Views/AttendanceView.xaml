@@ -131,7 +131,9 @@
         </StackPanel>
 
         <Grid Grid.Row="3" Margin="0,18,0,0">
-            <ItemsControl x:Name="AttendanceList" ItemTemplate="{StaticResource AttendanceTemplate}" />
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl x:Name="AttendanceList" ItemTemplate="{StaticResource AttendanceTemplate}" />
+            </ScrollViewer>
             <TextBlock x:Name="EmptyStateText" Text="Choose a semester start date in Settings to generate attendance records."
                        Foreground="{StaticResource SecondaryTextBrush}" FontSize="14"
                        HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,40,0,0"
