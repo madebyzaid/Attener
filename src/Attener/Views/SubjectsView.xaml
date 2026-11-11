@@ -5,6 +5,8 @@
     <UserControl.Resources>
         <!-- Rounded name box, based on the app's TextBox style. Accent outline while typing. -->
         <Style x:Key="RoundedTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+            <Setter Property="CaretBrush" Value="{StaticResource PrimaryTextBrush}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
@@ -12,7 +14,7 @@
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="10">
                             <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"
-                                          VerticalAlignment="Center" Focusable="False" />
+                                          Focusable="False" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsKeyboardFocused" Value="True">
@@ -84,7 +86,7 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBox x:Name="SubjectNameBox" Style="{StaticResource RoundedTextBoxStyle}"
+                <TextBox x:Name="SubjectNameBox"
                          Height="42" Padding="12,9" FontSize="14" Background="#191C23"
                          BorderThickness="1" ToolTip="Subject name"
                          KeyDown="SubjectNameBox_KeyDown" />
