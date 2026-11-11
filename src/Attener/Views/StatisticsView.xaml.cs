@@ -24,9 +24,6 @@ public partial class StatisticsView : UserControl
         if (semesterStart is null)
         {
             DateRangeText.Text = "Choose a semester start date to begin.";
-            OverallPercentage.Text = "—";
-            OverallHours.Text = "No counted hours yet";
-            OverallProgress.Value = 0;
             SubjectStatsList.ItemsSource = Array.Empty<SubjectStatRow>();
             EmptyStateText.Text = "Choose a semester start date in Settings to view statistics.";
             EmptyStateText.Visibility = Visibility.Visible;
@@ -36,15 +33,6 @@ public partial class StatisticsView : UserControl
         var today = DateOnly.FromDateTime(DateTime.Today);
         DateRangeText.Text = $"{semesterStart:dd MMM yyyy} to {today:dd MMM yyyy}";
         var summaries = _statistics.GetSubjectSummaries(semesterStart.Value, today);
-        var countedMinutes = summaries.Sum(summary => summary.CountedMinutes);
-        var attendedMinutes = summaries.Sum(summary => summary.AttendedMinutes);
-        var overall = countedMinutes == 0 ? 0m : attendedMinutes * 100m / countedMinutes;
-
-        OverallPercentage.Text = countedMinutes == 0 ? "—" : $"{overall:0.0}%";
-        OverallHours.Text = countedMinutes == 0
-            ? "No counted hours yet"
-            : $"{FormatHours(attendedMinutes)} attended · {FormatHours(countedMinutes)} counted";
-        OverallProgress.Value = countedMinutes == 0 ? 0 : (double)overall;
 
         var rows = summaries.Select(summary =>
         {

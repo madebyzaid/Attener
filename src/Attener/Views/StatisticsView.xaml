@@ -47,8 +47,6 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -58,32 +56,7 @@
                        Foreground="{StaticResource SecondaryTextBrush}" Margin="0,7,0,0" />
         </StackPanel>
 
-        <Border Grid.Row="1" Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="#2B303B" BorderThickness="1"
-                CornerRadius="16" Padding="22" Margin="0,22,0,0">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="Overall attendance" FontSize="14"
-                               Foreground="{StaticResource SecondaryTextBrush}" />
-                    <TextBlock x:Name="OverallPercentage" Text="—" FontSize="34"
-                               FontWeight="SemiBold" Margin="0,5,0,0" />
-                </StackPanel>
-                <ProgressBar x:Name="OverallProgress" Grid.Column="1" Maximum="100"
-                             Height="10" VerticalAlignment="Center" Margin="28,0" />
-                <TextBlock x:Name="OverallHours" Grid.Column="2" Text="No counted hours yet"
-                           FontSize="13" Foreground="{StaticResource SecondaryTextBrush}"
-                           VerticalAlignment="Center" HorizontalAlignment="Right" />
-            </Grid>
-        </Border>
-
-        <TextBlock x:Name="SubjectsHeading" Grid.Row="2" Text="By subject" FontSize="17"
-                   FontWeight="SemiBold" Margin="0,23,0,12" />
-
-        <Grid Grid.Row="3">
+        <Grid Grid.Row="1" Margin="0,22,0,0">
             <ItemsControl x:Name="SubjectStatsList" ItemTemplate="{StaticResource SubjectStatTemplate}" />
             <TextBlock x:Name="EmptyStateText" Text="Choose a semester start date in Settings to view statistics."
                        Foreground="{StaticResource SecondaryTextBrush}" FontSize="14"
