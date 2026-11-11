@@ -246,7 +246,8 @@ public partial class TimetableView : UserControl
     private void AddCell(string text, int column, int row, bool header)
     {
         var block = new TextBlock { Text = text, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.SemiBold, Foreground = header ? (Brush)FindResource("PrimaryTextBrush") : Brushes.White };
-        var border = new Border { Child = block, Background = header ? (Brush)FindResource("SurfaceBackgroundBrush") : Brushes.Transparent, Margin = new Thickness(1) };
+        // Rounded (radius 6) with the same 2 px gap as the class cells, so headers and cells line up.
+        var border = new Border { Child = block, Background = header ? (Brush)FindResource("SurfaceBackgroundBrush") : Brushes.Transparent, CornerRadius = new CornerRadius(6), Margin = new Thickness(2) };
         Grid.SetColumn(border, column); Grid.SetRow(border, row); TimetableGrid.Children.Add(border);
     }
 

@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using Attener.Features.Subjects;
 using Attener.Infrastructure.Database;
 
@@ -83,12 +84,59 @@ public partial class SubjectsView : UserControl
     private void RenameSubject_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { DataContext: SubjectSummary subject }) return;
-        var input = new TextBox { Text = subject.Name, Width = 300, Margin = new Thickness(0, 12, 0, 12) };
-        var panel = new StackPanel { Margin = new Thickness(18) };
-        panel.Children.Add(new TextBlock { Text = "New subject name" });
+
+        // Same layout and styling as the "Add entry" dialog: title, label, rounded field, Cancel + accent button.
+        var input = new TextBox
+        {
+            Text = subject.Name,
+            Height = 40,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 6, 0, 18),
+            Style = (Style)FindResource("RoundedTextBoxStyle")
+        };
+        var save = new Button
+        {
+            Content = "Rename",
+            Padding = new Thickness(18, 7, 18, 7),
+            Background = (Brush)FindResource("AccentBrush"),
+            Foreground = new SolidColorBrush(Color.FromRgb(0x11, 0x13, 0x18)),
+            FontWeight = FontWeights.SemiBold,
+            BorderThickness = new Thickness(0),
+            IsDefault = true,
+            Cursor = Cursors.Hand
+        };
+        var cancel = new Button
+        {
+            Content = "Cancel",
+            Padding = new Thickness(14, 7, 14, 7),
+            Margin = new Thickness(0, 0, 8, 0),
+            IsCancel = true,
+            BorderThickness = new Thickness(0),
+            Cursor = Cursors.Hand
+        };
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        buttons.Children.Add(cancel);
+        buttons.Children.Add(save);
+
+        var panel = new StackPanel { Margin = new Thickness(22), Width = 320 };
+        panel.Children.Add(new TextBlock { Text = "Rename subject", FontSize = 18, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 16) });
+        panel.Children.Add(new TextBlock { Text = "New subject name", Foreground = (Brush)FindResource("SecondaryTextBrush"), FontSize = 12 });
         panel.Children.Add(input);
-        var dialog = new Window { Title = "Rename subject", Content = panel, SizeToContent = SizeToContent.WidthAndHeight, WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = Window.GetWindow(this), Background = (System.Windows.Media.Brush)FindResource("SurfaceBackgroundBrush"), Foreground = (System.Windows.Media.Brush)FindResource("PrimaryTextBrush") };
-        input.KeyDown += (_, key) => { if (key.Key == Key.Enter) dialog.DialogResult = true; };
+        panel.Children.Add(buttons);
+
+        var dialog = new Window
+        {
+            Title = "Rename subject",
+            Content = panel,
+            SizeToContent = SizeToContent.WidthAndHeight,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = Window.GetWindow(this),
+            Background = (Brush)FindResource("SurfaceBackgroundBrush")
+        };
+        save.Click += (_, _) => dialog.DialogResult = true;
+        dialog.Loaded += (_, _) => { input.Focus(); input.SelectAll(); };
+
         if (dialog.ShowDialog() != true || string.IsNullOrWhiteSpace(input.Text)) return;
         try { _repository.RenameSubject(subject.Id, input.Text); LoadSubjects(); }
         catch (Microsoft.Data.Sqlite.SqliteException) { MessageBox.Show("A subject with that name already exists.", "Name already used", MessageBoxButton.OK, MessageBoxImage.Information); }

@@ -119,20 +119,28 @@ public partial class SettingsView : UserControl
     {
         _reset.DeleteAllData();
 
-        var semesterStart = new DateOnly(2026, 8, 1);
-        var yesterday = new DateOnly(2026, 11, 10);
+        // Semester starts Monday 3 Aug 2026. Records are created up to today, but never past 18 Nov 2026;
+        // classes after today stay as scheduled classes only, exactly as the real app treats them.
+        var semesterStart = new DateOnly(2026, 8, 3);
+        var lastDay = DateOnly.FromDateTime(DateTime.Today);
+        if (lastDay > new DateOnly(2026, 11, 18))
+            lastDay = new DateOnly(2026, 11, 18);
 
         var subjectNames = new[]
         {
-            "EC101P",
-            "ME105L",
             "AM101L",
-            "CS101P",
+            "ME105L",
+            "CO101L",
             "EC101L",
-            "ME102L"
+            "CS103L",
+            "AEC18",
+            "ME105P",
+            "CO101P",
+            "CS103P",
+            "EC101P",
+            "AM101T"
         };
 
-        var archivedSubject = "ME102L";
         var subjectIdByName = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         var connectionString = new SqliteConnectionStringBuilder
         {
@@ -154,8 +162,9 @@ public partial class SettingsView : UserControl
 
         foreach (var name in subjectNames)
         {
-            var isArchived = string.Equals(name, archivedSubject, StringComparison.OrdinalIgnoreCase) ? 1 : 0;
-            var archivedOn = isArchived == 1 ? "2026-09-01" : null;
+            // All subjects are active in this data set.
+            var isArchived = 0;
+            string? archivedOn = null;
 
             using var insertSubject = connection.CreateCommand();
             insertSubject.Transaction = transaction;
@@ -172,33 +181,70 @@ public partial class SettingsView : UserControl
             subjectIdByName[name] = Convert.ToInt64(lastId);
         }
 
+        // Four different weekly timetables, one per month. DayOfWeek: 0 = Sunday, 1 = Monday ... 6 = Saturday.
+        // Every subject appears in every month; every class falls between 08:00 and 18:00.
+        // EffectiveTo is the first day of the next timetable (exclusive); the last one has no end.
         var weeklySessions = new[]
         {
-            new SeederSession("EC101P", 1, "09:00", "11:00", "2026-08-01", "2026-09-01"),
-            new SeederSession("EC101P", 3, "11:00", "13:00", "2026-08-01", "2026-09-01"),
-            new SeederSession("ME105L", 2, "14:00", "16:00", "2026-08-01", "2026-09-01"),
-            new SeederSession("ME105L", 4, "10:00", "12:00", "2026-08-01", "2026-09-01"),
-            new SeederSession("AM101L", 4, "13:00", "15:00", "2026-08-01", "2026-09-01"),
-            new SeederSession("CS101P", 5, "09:00", "11:00", "2026-08-01", "2026-09-01"),
-            new SeederSession("ME102L", 6, "07:00", "08:00", "2026-08-01", "2026-09-01"),
+            // ---- August (3 Aug - 31 Aug) ----
+            new SeederSession("AM101L", 1, "09:00", "11:00", "2026-08-03", "2026-09-01"),
+            new SeederSession("CO101P", 1, "14:00", "16:00", "2026-08-03", "2026-09-01"),
+            new SeederSession("AEC18",  2, "08:00", "09:00", "2026-08-03", "2026-09-01"),
+            new SeederSession("ME105L", 2, "10:00", "12:00", "2026-08-03", "2026-09-01"),
+            new SeederSession("EC101L", 2, "14:00", "16:00", "2026-08-03", "2026-09-01"),
+            new SeederSession("CS103L", 3, "09:00", "11:00", "2026-08-03", "2026-09-01"),
+            new SeederSession("AM101T", 3, "11:00", "12:00", "2026-08-03", "2026-09-01"),
+            new SeederSession("ME105P", 3, "13:00", "15:00", "2026-08-03", "2026-09-01"),
+            new SeederSession("CO101L", 4, "10:00", "12:00", "2026-08-03", "2026-09-01"),
+            new SeederSession("EC101P", 4, "14:00", "16:00", "2026-08-03", "2026-09-01"),
+            new SeederSession("CS103P", 5, "09:00", "11:00", "2026-08-03", "2026-09-01"),
+            new SeederSession("AEC18",  5, "11:00", "12:00", "2026-08-03", "2026-09-01"),
 
-            new SeederSession("CS101P", 1, "10:00", "12:00", "2026-09-01", "2026-10-01"),
-            new SeederSession("EC101L", 2, "09:00", "11:00", "2026-09-01", "2026-10-01"),
-            new SeederSession("ME105L", 2, "13:00", "15:00", "2026-09-01", "2026-10-01"),
-            new SeederSession("AM101L", 3, "14:00", "16:00", "2026-09-01", "2026-10-01"),
-            new SeederSession("EC101P", 5, "11:00", "13:00", "2026-09-01", "2026-10-01"),
+            // ---- September ----
+            new SeederSession("CO101L", 1, "08:00", "10:00", "2026-09-01", "2026-10-01"),
+            new SeederSession("EC101P", 1, "11:00", "13:00", "2026-09-01", "2026-10-01"),
+            new SeederSession("AM101T", 1, "15:00", "16:00", "2026-09-01", "2026-10-01"),
+            new SeederSession("CS103L", 2, "09:00", "11:00", "2026-09-01", "2026-10-01"),
+            new SeederSession("AM101L", 2, "13:00", "15:00", "2026-09-01", "2026-10-01"),
+            new SeederSession("ME105L", 3, "10:00", "12:00", "2026-09-01", "2026-10-01"),
+            new SeederSession("CS103P", 3, "14:00", "16:00", "2026-09-01", "2026-10-01"),
+            new SeederSession("AEC18",  3, "16:00", "17:00", "2026-09-01", "2026-10-01"),
+            new SeederSession("EC101L", 4, "09:00", "11:00", "2026-09-01", "2026-10-01"),
+            new SeederSession("CO101P", 4, "11:00", "13:00", "2026-09-01", "2026-10-01"),
+            new SeederSession("ME105P", 4, "15:00", "17:00", "2026-09-01", "2026-10-01"),
+            new SeederSession("AEC18",  5, "08:00", "09:00", "2026-09-01", "2026-10-01"),
+            new SeederSession("AM101T", 5, "12:00", "13:00", "2026-09-01", "2026-10-01"),
 
-            new SeederSession("ME105L", 0, "15:00", "17:00", "2026-10-01", "2026-11-01"),
-            new SeederSession("CS101P", 1, "08:00", "10:00", "2026-10-01", "2026-11-01"),
-            new SeederSession("EC101L", 3, "12:00", "14:00", "2026-10-01", "2026-11-01"),
-            new SeederSession("EC101P", 4, "16:00", "18:00", "2026-10-01", "2026-11-01"),
-            new SeederSession("AM101L", 5, "10:00", "12:00", "2026-10-01", "2026-11-01"),
+            // ---- October ----
+            new SeederSession("ME105P", 1, "10:00", "12:00", "2026-10-01", "2026-11-01"),
+            new SeederSession("AEC18",  1, "13:00", "14:00", "2026-10-01", "2026-11-01"),
+            new SeederSession("CS103L", 1, "15:00", "17:00", "2026-10-01", "2026-11-01"),
+            new SeederSession("AM101L", 2, "08:00", "10:00", "2026-10-01", "2026-11-01"),
+            new SeederSession("CO101P", 2, "11:00", "13:00", "2026-10-01", "2026-11-01"),
+            new SeederSession("EC101L", 2, "14:00", "16:00", "2026-10-01", "2026-11-01"),
+            new SeederSession("AM101T", 3, "09:00", "10:00", "2026-10-01", "2026-11-01"),
+            new SeederSession("CO101L", 3, "11:00", "13:00", "2026-10-01", "2026-11-01"),
+            new SeederSession("ME105L", 3, "14:00", "16:00", "2026-10-01", "2026-11-01"),
+            new SeederSession("CS103P", 4, "10:00", "12:00", "2026-10-01", "2026-11-01"),
+            new SeederSession("EC101P", 4, "13:00", "15:00", "2026-10-01", "2026-11-01"),
+            new SeederSession("AEC18",  5, "09:00", "10:00", "2026-10-01", "2026-11-01"),
+            new SeederSession("AM101T", 5, "14:00", "15:00", "2026-10-01", "2026-11-01"),
 
-            new SeederSession("AM101L", 1, "13:00", "15:00", "2026-11-01", null),
-            new SeederSession("ME105L", 2, "09:00", "11:00", "2026-11-01", null),
-            new SeederSession("EC101P", 3, "15:00", "17:00", "2026-11-01", null),
-            new SeederSession("CS101P", 4, "11:00", "13:00", "2026-11-01", null),
-            new SeederSession("EC101L", 5, "08:00", "10:00", "2026-11-01", null)
+            // ---- November onward ----
+            new SeederSession("CS103P", 1, "09:00", "11:00", "2026-11-01", null),
+            new SeederSession("AM101T", 1, "11:00", "12:00", "2026-11-01", null),
+            new SeederSession("EC101L", 1, "14:00", "16:00", "2026-11-01", null),
+            new SeederSession("ME105L", 2, "08:00", "10:00", "2026-11-01", null),
+            new SeederSession("CO101P", 2, "10:00", "12:00", "2026-11-01", null),
+            new SeederSession("AEC18",  2, "15:00", "16:00", "2026-11-01", null),
+            new SeederSession("AM101L", 3, "10:00", "12:00", "2026-11-01", null),
+            new SeederSession("EC101P", 3, "13:00", "15:00", "2026-11-01", null),
+            new SeederSession("CS103L", 3, "15:00", "17:00", "2026-11-01", null),
+            new SeederSession("CO101L", 4, "09:00", "11:00", "2026-11-01", null),
+            new SeederSession("ME105P", 4, "11:00", "13:00", "2026-11-01", null),
+            new SeederSession("AM101T", 4, "16:00", "17:00", "2026-11-01", null),
+            new SeederSession("AEC18",  5, "08:00", "09:00", "2026-11-01", null),
+            new SeederSession("CO101P", 5, "14:00", "16:00", "2026-11-01", null)
         };
 
         foreach (var session in weeklySessions)
@@ -221,47 +267,28 @@ public partial class SettingsView : UserControl
         {
             var effectiveFrom = DateOnly.ParseExact(session.EffectiveFrom, "yyyy-MM-dd", CultureInfo.InvariantCulture);
             var effectiveTo = session.EffectiveTo is null
-                ? yesterday.AddDays(1)
+                ? lastDay.AddDays(1)
                 : DateOnly.ParseExact(session.EffectiveTo, "yyyy-MM-dd", CultureInfo.InvariantCulture);
 
-            for (var date = effectiveFrom; date < effectiveTo && date <= yesterday; date = date.AddDays(1))
+            for (var date = effectiveFrom; date < effectiveTo && date <= lastDay; date = date.AddDays(1))
             {
                 if ((int)date.DayOfWeek == session.DayOfWeek)
                     occurrences.Add((session, date));
             }
         }
 
+        // Repeatable mix (fixed seed): about 78% Present, 12% Absent, 5% Cancelled, 5% Not Marked.
+        // The last four days are always Not Marked, so the Pending tab has something to show.
         var random = new Random(42);
-        var statusRates = new[]
+        var statuses = occurrences.Select(item =>
         {
-            (Status: "Present", Rate: 0.75),
-            (Status: "Absent", Rate: 0.15),
-            (Status: "Cancelled", Rate: 0.05),
-            (Status: "Not Marked", Rate: 0.05)
-        };
-        var statusCounts = statusRates
-            .Select(item => (item.Status, Count: (int)Math.Floor(occurrences.Count * item.Rate),
-                Remainder: occurrences.Count * item.Rate % 1))
-            .ToArray();
-        var remainingStatuses = occurrences.Count - statusCounts.Sum(item => item.Count);
-        var statusOrder = statusCounts
-            .Select((item, index) => (item.Remainder, Index: index))
-            .OrderByDescending(item => item.Remainder)
-            .Select(item => item.Index)
-            .ToArray();
-        var statusByName = statusCounts.Select(item => item.Status).ToArray();
-        var statusAllocations = statusCounts.Select(item => item.Count).ToArray();
-        for (var i = 0; i < remainingStatuses; i++)
-            statusAllocations[statusOrder[i]]++;
-
-        var statuses = statusByName
-            .SelectMany((status, index) => Enumerable.Repeat(status, statusAllocations[index]))
-            .ToArray();
-        for (var i = statuses.Length - 1; i > 0; i--)
-        {
-            var j = random.Next(i + 1);
-            (statuses[i], statuses[j]) = (statuses[j], statuses[i]);
-        }
+            var roll = random.NextDouble();
+            if (item.Date > lastDay.AddDays(-4)) return "Not Marked";
+            return roll < 0.78 ? "Present"
+                : roll < 0.90 ? "Absent"
+                : roll < 0.95 ? "Cancelled"
+                : "Not Marked";
+        }).ToArray();
 
         for (var i = 0; i < occurrences.Count; i++)
         {
@@ -278,12 +305,13 @@ public partial class SettingsView : UserControl
             insertRecord.ExecuteNonQuery();
         }
 
+        // Hand-added entries are always Present, Absent or Cancelled, as in the real "Add entry" dialog.
         var manualEntries = new[]
         {
-            (Subject: "EC101P", Date: new DateOnly(2026, 8, 9), Status: "Present", Duration: 45),
+            (Subject: "CS103L", Date: new DateOnly(2026, 8, 16), Status: "Present", Duration: 45),
             (Subject: "AM101L", Date: new DateOnly(2026, 9, 20), Status: "Absent", Duration: 60),
-            (Subject: "CS101P", Date: new DateOnly(2026, 10, 25), Status: "Cancelled", Duration: 90),
-            (Subject: "ME105L", Date: new DateOnly(2026, 11, 8), Status: "Not Marked", Duration: 75)
+            (Subject: "CO101P", Date: new DateOnly(2026, 10, 25), Status: "Cancelled", Duration: 90),
+            (Subject: "ME105L", Date: new DateOnly(2026, 11, 8), Status: "Present", Duration: 75)
         };
 
         foreach (var entry in manualEntries)
