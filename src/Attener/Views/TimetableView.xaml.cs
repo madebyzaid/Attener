@@ -66,8 +66,8 @@ public partial class TimetableView : UserControl
         var choices = new List<HistoryChoice>
         {
             new(null, current is null
-                ? "Current timetable (you can edit this)"
-                : $"Current timetable since {current.Start:dd MMM yyyy} (you can edit this)")
+                ? "Current timetable"
+                : $"Current timetable since {current.Start:dd MMM yyyy}")
         };
         foreach (var period in history.Where(p => p.End is not null && p.End <= today).OrderByDescending(p => p.Start))
             choices.Add(new HistoryChoice(period, $"{period.Start:dd MMM yyyy} to {period.LastDay:dd MMM yyyy}"));

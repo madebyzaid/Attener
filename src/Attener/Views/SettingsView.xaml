@@ -30,6 +30,20 @@
                 </StackPanel>
             </Border>
 
+            <Border Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="#2B303B"
+                    BorderThickness="1" CornerRadius="16" Padding="24" Margin="0,18,0,0">
+                <StackPanel>
+                    <TextBlock Text="Temporary test data" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock Text="Seed a realistic mock semester, including class timetable, attendance and a few manual records. This clears the current database first."
+                               Foreground="{StaticResource SecondaryTextBrush}" FontSize="14"
+                               TextWrapping="Wrap" MaxWidth="800" HorizontalAlignment="Left"
+                               Margin="0,9,0,18" />
+                    <Button Content="Seed test data" Padding="18,0" Height="40" HorizontalAlignment="Left"
+                            Background="{StaticResource AccentBrush}" Foreground="#111318" FontWeight="SemiBold"
+                            BorderThickness="0" Cursor="Hand" Click="SeedTestData_Click" />
+                </StackPanel>
+            </Border>
+
             <!-- Danger zone -->
             <Border Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="#66D64550"
                     BorderThickness="1" CornerRadius="16" Padding="24" Margin="0,18,0,0">
