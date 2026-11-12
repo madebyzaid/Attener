@@ -84,8 +84,25 @@ public sealed class AttendanceRepository
                 FROM AttendanceRecords a
                 JOIN Subjects s ON s.Id = a.SubjectId
                 WHERE a.AttendanceDate = $date
-                ORDER BY a.ScheduledStart, s.Name COLLATE NOCASE;
+                UNION ALL
+                SELECT ws.SubjectId, s.Name, $date, ws.StartTime, ws.EndTime,
+                       (CAST(substr(ws.EndTime, 1, 2) AS INTEGER) * 60 + CAST(substr(ws.EndTime, 4, 2) AS INTEGER))
+                       - (CAST(substr(ws.StartTime, 1, 2) AS INTEGER) * 60 + CAST(substr(ws.StartTime, 4, 2) AS INTEGER)),
+                       NULL, NULL, 0, 0, 0
+                FROM WeeklySessions ws
+                JOIN Subjects s ON s.Id = ws.SubjectId
+                WHERE ws.DayOfWeek = $dayOfWeek
+                  AND ws.EffectiveFrom <= $date
+                  AND (ws.EffectiveTo IS NULL OR ws.EffectiveTo > $date)
+                  AND (s.IsArchived = 0 OR (s.ArchivedOn IS NOT NULL AND s.ArchivedOn > $date))
+                  AND NOT EXISTS (
+                      SELECT 1 FROM AttendanceRecords a
+                      WHERE a.SubjectId = ws.SubjectId AND a.AttendanceDate = $date
+                        AND a.ScheduledStart = ws.StartTime AND a.IsManual = 0
+                  )
+                ORDER BY 4, 2;
                 """;
+            command.Parameters.AddWithValue("$dayOfWeek", (int)date.DayOfWeek);
         }
         else
         {
@@ -163,8 +180,13 @@ public sealed class AttendanceRepository
         // It is changed by its own id instead.
         if (entry.IsManual)
         {
-            command.CommandText = "UPDATE AttendanceRecords SET Status = $status WHERE Id = $id AND IsManual = 1;";
-            command.Parameters.AddWithValue("$status", FormatStatus(status));
+            if (status == AttendanceStatus.NotMarked)
+                command.CommandText = "DELETE FROM AttendanceRecords WHERE Id = $id AND IsManual = 1;";
+            else
+            {
+                command.CommandText = "UPDATE AttendanceRecords SET Status = $status WHERE Id = $id AND IsManual = 1;";
+                command.Parameters.AddWithValue("$status", FormatStatus(status));
+            }
             command.Parameters.AddWithValue("$id", entry.Id);
             command.ExecuteNonQuery();
             return;

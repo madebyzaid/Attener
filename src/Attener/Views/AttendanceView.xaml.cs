@@ -53,7 +53,7 @@ public partial class AttendanceView : UserControl
                         ? "No scheduled time"
                         : $"{entry.ScheduledStart}–{entry.ScheduledEnd}",
             entry.Status ?? AttendanceStatus.NotMarked,
-            entry.IsManual || _showPending || (canEdit && canGenerate))).ToArray();
+            entry.IsManual || _showPending || entry.AttendanceDate > DateOnly.FromDateTime(DateTime.Today) || (canEdit && canGenerate))).ToArray();
 
         DateControls.Visibility = _showPending ? Visibility.Collapsed : Visibility.Visible;
         PendingHeader.Visibility = _showPending ? Visibility.Visible : Visibility.Collapsed;
@@ -90,9 +90,7 @@ public partial class AttendanceView : UserControl
         if (sender is not FrameworkElement { DataContext: AttendanceRow row })
             return;
 
-        // A hand-entered record is always Present, Absent or Cancelled, so clicking its current
-        // status does nothing (use Delete to remove it).
-        var newStatus = row.SelectedStatus == clicked && !row.Entry.IsManual ? AttendanceStatus.NotMarked : clicked;
+        var newStatus = row.SelectedStatus == clicked ? AttendanceStatus.NotMarked : clicked;
         _attendance.SaveAttendance(row.Entry, newStatus);
         LoadAttendance();
     }
@@ -113,7 +111,9 @@ public partial class AttendanceView : UserControl
     }
 
     // Pop-up for adding attendance by hand: an existing subject, any date, a status and a duration.
-    private void AddManual_Click(object sender, RoutedEventArgs e)
+    private void AddManual_Click(object sender, RoutedEventArgs e) => AddManualForDate();
+
+    public void AddManualForDate(DateTime? initialDate = null, bool lockDate = false)
     {
         var choices = _subjects.GetSubjects(includeArchived: false)
             .Select(subject => new SubjectChoice(subject.Id, subject.Name))
@@ -132,7 +132,8 @@ public partial class AttendanceView : UserControl
         var dateBox = new DatePicker
         {
             Height = 38,
-            SelectedDate = AttendanceDatePicker.SelectedDate ?? DateTime.Today,
+            SelectedDate = initialDate ?? AttendanceDatePicker.SelectedDate ?? DateTime.Today,
+            IsEnabled = !lockDate,
             Margin = new Thickness(0, 6, 0, 14)
         };
         var statusBox = new ComboBox

@@ -105,27 +105,34 @@
 
         <DataTemplate x:Key="CalendarSessionTemplate">
             <Border Background="{StaticResource SurfaceBackgroundBrush}" CornerRadius="10"
-                    Padding="18,15" Margin="0,0,0,10">
+                    Padding="14,12" Margin="0,0,0,10">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="{Binding SubjectName}" FontSize="15" FontWeight="SemiBold"
                                    TextTrimming="CharacterEllipsis" />
-                        <TextBlock Text="{Binding StatusText}" FontSize="12"
+                        <TextBlock Text="{Binding TimeRange}" FontSize="12"
                                    Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,0" />
+                        <TextBlock Text="Added manually" FontSize="11"
+                                   Foreground="{StaticResource AccentBrush}" Margin="0,3,0,0"
+                                   Visibility="{Binding ManualVisibility}" />
                     </StackPanel>
-                    <TextBlock Grid.Column="1" Text="{Binding TimeRange}" FontSize="13"
-                               Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center"
-                               HorizontalAlignment="Right" Margin="12,0,0,0" />
-                    <Border Grid.Column="2" Background="#292E39" CornerRadius="8"
-                            Padding="9,6" Margin="12,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding StatusLabel}" FontSize="11"
-                                   Foreground="{StaticResource AccentBrush}" TextAlignment="Center" />
-                    </Border>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <ToggleButton Content="Present" Style="{StaticResource StatusToggleStyle}"
+                                      Tag="{StaticResource PresentBrush}" IsChecked="{Binding IsPresent, Mode=OneWay}"
+                                      IsEnabled="{Binding CanEdit}" Click="Present_Click" />
+                        <ToggleButton Content="Absent" Style="{StaticResource StatusToggleStyle}"
+                                      Tag="{StaticResource AbsentBrush}" IsChecked="{Binding IsAbsent, Mode=OneWay}"
+                                      IsEnabled="{Binding CanEdit}" Click="Absent_Click" />
+                        <ToggleButton Content="Cancelled" Style="{StaticResource StatusToggleStyle}"
+                                      Tag="{StaticResource CancelledBrush}" IsChecked="{Binding IsCancelled, Mode=OneWay}"
+                                      IsEnabled="{Binding CanEdit}" Click="Cancelled_Click" />
+                        <Button Content="Delete" Click="DeleteManual_Click" Visibility="{Binding DeleteVisibility}"
+                                Margin="10,0,0,0" Padding="12,0" Height="38" />
+                    </StackPanel>
                 </Grid>
             </Border>
         </DataTemplate>
@@ -145,8 +152,8 @@
 
         <Grid Grid.Row="1" Margin="0,22,0,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="400" />
+                <ColumnDefinition Width="2*" MinWidth="320" />
+                <ColumnDefinition Width="3*" MinWidth="450" />
             </Grid.ColumnDefinitions>
 
             <Border Background="{StaticResource SurfaceBackgroundBrush}" CornerRadius="12" Padding="16">
@@ -195,12 +202,18 @@
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <StackPanel>
-                    <TextBlock x:Name="SelectedDateHeading" Text="Classes" FontSize="20" FontWeight="SemiBold"
-                               TextWrapping="Wrap" />
-                    <TextBlock Text="Scheduled times and attendance status" FontSize="12"
-                               Foreground="{StaticResource SecondaryTextBrush}" Margin="0,5,0,0" />
-                </StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock x:Name="SelectedDateHeading" Text="Classes" FontSize="20" FontWeight="SemiBold"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Text="Scheduled times and attendance status" FontSize="12"
+                                   Foreground="{StaticResource SecondaryTextBrush}" Margin="0,5,0,0" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="+ Add entry" Click="AddManual_Click" Margin="10,0,0,0"
+                            Padding="12,7" Background="{StaticResource AccentBrush}" Foreground="#111318"
+                            FontWeight="SemiBold" BorderThickness="0" Cursor="Hand" />
+                </Grid>
 
                 <ComboBox x:Name="SubjectFilter" Grid.Row="1" Height="38" Margin="0,14,0,0"
                           DisplayMemberPath="Label" SelectedValuePath="SubjectId"

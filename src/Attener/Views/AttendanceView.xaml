@@ -3,57 +3,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="Transparent">
     <UserControl.Resources>
-        <!-- Status colours. Each button reads its colour from its Tag. -->
-        <SolidColorBrush x:Key="PresentBrush" Color="#5BD68A" />
-        <SolidColorBrush x:Key="AbsentBrush" Color="#de546b" />
-        <SolidColorBrush x:Key="CancelledBrush" Color="#a25af0" />
-
-        <!-- Present / Absent / Cancelled button: coloured outline when off, filled with its colour when on.
-             It sets the TextBlock foreground explicitly because the global TextBlock style would force it to white. -->
-        <Style x:Key="StatusToggleStyle" TargetType="ToggleButton">
-            <Setter Property="Foreground" Value="{Binding Tag, RelativeSource={RelativeSource Self}}" />
-            <Setter Property="BorderBrush" Value="{Binding Tag, RelativeSource={RelativeSource Self}}" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Width" Value="104" />
-            <Setter Property="Height" Value="38" />
-            <Setter Property="Margin" Value="8,0,0,0" />
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ToggleButton">
-                        <Border x:Name="Chrome" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1.5"
-                                CornerRadius="6">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <ContentPresenter.Resources>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Foreground"
-                                                Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" />
-                                    </Style>
-                                </ContentPresenter.Resources>
-                            </ContentPresenter>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#2B303B" />
-                            </Trigger>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Chrome" Property="Background"
-                                        Value="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" />
-                                <Setter Property="Foreground" Value="#111318" />
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.45" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
         <DataTemplate x:Key="AttendanceTemplate">
             <Border Background="{StaticResource SurfaceBackgroundBrush}" CornerRadius="10"
                     Padding="18" Margin="0,0,0,10">

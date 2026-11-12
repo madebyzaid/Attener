@@ -12,7 +12,6 @@ namespace Attener.Views;
 
 public partial class CalendarView : UserControl
 {
-    private readonly TimetableRepository _timetable = new(DatabaseLocation.GetPath());
     private readonly AttendanceRepository _attendance = new(DatabaseLocation.GetPath());
     private readonly CalendarStatusRepository _calendarStatuses = new(DatabaseLocation.GetPath());
     private readonly SemesterSettingsRepository _settings = new(DatabaseLocation.GetPath());
@@ -87,59 +86,73 @@ public partial class CalendarView : UserControl
 
         var selectedSubject = (SubjectFilter.SelectedItem as CalendarSubjectFilter)?.SubjectId;
 
-        // A subject can have several classes on one day, so saved records are matched to
-        // timetable classes by subject + start time (not by subject alone).
-        var storedByClass = new Dictionary<(long SubjectId, string? Start), AttendanceEntry>();
-        foreach (var entry in _attendance.GetAttendanceForDate(date, allowUnmarked: true))
-            storedByClass[(entry.SubjectId, entry.IsManual ? $"manual-{entry.Id}" : entry.ScheduledStart)] = entry;
-
-        var rows = new List<CalendarSessionRow>();
-        var dayOfWeek = (int)selectedDate.DayOfWeek;
-
-        foreach (var session in _timetable.GetWeeklySessions(date)
-                     .Where(item => item.DayOfWeek == dayOfWeek &&
-                                    (selectedSubject is null || item.SubjectId == selectedSubject)))
-        {
-            var key = (session.SubjectId, (string?)session.StartTime);
-            storedByClass.TryGetValue(key, out var record);
-            rows.Add(new CalendarSessionRow(
-                session.SubjectName,
-                $"{session.StartTime}–{session.EndTime}",
-                record is null ? "Scheduled class" : StatusLabel(record.Status),
-                record is null ? "Scheduled" : StatusLabel(record.Status)));
-            storedByClass.Remove(key);
-        }
-
-        foreach (var record in storedByClass.Values.Where(record =>
-                     selectedSubject is null || record.SubjectId == selectedSubject))
-        {
-            rows.Add(new CalendarSessionRow(
-                record.SubjectName,
-                record.IsManual
-                    ? $"Manual · {(record.ScheduledDurationMinutes / 60m).ToString("0.##", CultureInfo.InvariantCulture)} h"
-                    : record.ScheduledStart is null || record.ScheduledEnd is null
+        var rows = _attendance.GetAttendanceForDate(date, allowUnmarked: true)
+            .Where(entry => selectedSubject is null || entry.SubjectId == selectedSubject)
+            .Select(entry => new CalendarSessionRow(entry,
+                entry.IsManual
+                    ? $"Manual · {(entry.ScheduledDurationMinutes / 60m).ToString("0.##", CultureInfo.InvariantCulture)} h"
+                    : entry.ScheduledStart is null || entry.ScheduledEnd is null
                         ? "Time unavailable"
-                        : $"{record.ScheduledStart}–{record.ScheduledEnd}",
-                StatusLabel(record.Status), StatusLabel(record.Status)));
-        }
+                        : $"{entry.ScheduledStart}–{entry.ScheduledEnd}",
+                entry.IsManual || date > today || (semesterStart is not null && date >= semesterStart.Value)))
+            .OrderBy(row => row.TimeRange).ToArray();
 
-        SessionsList.ItemsSource = rows.OrderBy(row => row.TimeRange).ToArray();
-        EmptyStateText.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        SessionsList.ItemsSource = rows;
+        EmptyStateText.Visibility = rows.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private static string StatusLabel(AttendanceStatus? status) => status switch
+    private void Present_Click(object sender, RoutedEventArgs e) => SetStatus(sender, AttendanceStatus.Present);
+    private void Absent_Click(object sender, RoutedEventArgs e) => SetStatus(sender, AttendanceStatus.Absent);
+    private void Cancelled_Click(object sender, RoutedEventArgs e) => SetStatus(sender, AttendanceStatus.Cancelled);
+
+    private void SetStatus(object sender, AttendanceStatus clicked)
     {
-        AttendanceStatus.Present => "Present",
-        AttendanceStatus.Absent => "Absent",
-        AttendanceStatus.Cancelled => "Cancelled",
-        AttendanceStatus.NotMarked => "Not Marked",
-        AttendanceStatus.NoClass => "No Class",
-        _ => "Scheduled"
-    };
+        if (sender is not FrameworkElement { DataContext: CalendarSessionRow row }) return;
+        _attendance.SaveAttendance(row.Entry,
+            row.SelectedStatus == clicked ? AttendanceStatus.NotMarked : clicked);
+        RefreshAttendanceViews();
+    }
+
+    private void DeleteManual_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: CalendarSessionRow row } || !row.Entry.IsManual) return;
+        var answer = MessageBox.Show($"Delete this {row.Entry.SubjectName} entry for {row.Entry.AttendanceDate:dd MMM yyyy}? This cannot be undone.",
+            "Delete entry", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
+        if (answer != MessageBoxResult.Yes) return;
+        _attendance.DeleteManualEntry(row.Entry.Id);
+        RefreshAttendanceViews();
+    }
+
+    private void AddManual_Click(object sender, RoutedEventArgs e)
+    {
+        if (MonthCalendar.SelectedDate is not DateTime date) return;
+        if (Application.Current.MainWindow is MainWindow window)
+            window.ShowAddAttendanceEntry(date, lockDate: true);
+        RefreshAttendanceViews();
+    }
+
+    private void RefreshAttendanceViews()
+    {
+        LoadSelectedDate();
+        LoadDayColors();
+    }
 
     private sealed record CalendarSubjectFilter(long? SubjectId, string Label) { public override string ToString() => Label; }
-    private sealed record CalendarSessionRow(
-        string SubjectName, string TimeRange, string StatusText, string StatusLabel);
+    private sealed class CalendarSessionRow
+    {
+        public AttendanceEntry Entry { get; }
+        public string SubjectName => Entry.SubjectName;
+        public string TimeRange { get; }
+        public bool CanEdit { get; }
+        public AttendanceStatus SelectedStatus => Entry.Status ?? AttendanceStatus.NotMarked;
+        public bool IsPresent => SelectedStatus == AttendanceStatus.Present;
+        public bool IsAbsent => SelectedStatus == AttendanceStatus.Absent;
+        public bool IsCancelled => SelectedStatus == AttendanceStatus.Cancelled;
+        public Visibility ManualVisibility => Entry.IsManual ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility DeleteVisibility => Entry.IsManual ? Visibility.Visible : Visibility.Collapsed;
+        public CalendarSessionRow(AttendanceEntry entry, string timeRange, bool canEdit)
+        { Entry = entry; TimeRange = timeRange; CanEdit = canEdit; }
+    }
 }
 
 // Used by the Calendar page's day cells (see StatusDayButtonStyle in CalendarView.xaml).

@@ -7,6 +7,8 @@ public partial class MainWindow : Window
 {
     public MainWindow() => InitializeComponent();
 
+    public void ShowAddAttendanceEntry(DateTime date, bool lockDate) => AttendancePage.AddManualForDate(date, lockDate);
+
     private void Navigate_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not RadioButton { Tag: string page })
