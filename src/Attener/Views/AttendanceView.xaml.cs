@@ -11,71 +11,79 @@ namespace Attener.Views;
 
 public partial class AttendanceView : UserControl
 {
+    // Left text padding inside the Add entry dialog, tuned so the Date and Duration text line up
+    // with the Subject and Status text. If the dialog looks misaligned, change these two numbers.
+    private const double DateTextPaddingLeft = 4.5;
+    private const double DurationTextPaddingLeft = 7.5;
+
     private readonly AttendanceRepository _attendance = new(DatabaseLocation.GetPath());
     private readonly SemesterSettingsRepository _settings = new(DatabaseLocation.GetPath());
     private readonly SubjectRepository _subjects = new(DatabaseLocation.GetPath());
-    private bool _showPending;
 
     public AttendanceView()
     {
         InitializeComponent();
         DataContext = this;
-        AttendanceDatePicker.SelectedDate = DateTime.Today;
         LoadAttendance();
     }
 
     public void RefreshData() => LoadAttendance();
 
+    // The page shows one card per date: today first (all of today's classes, marked or not),
+    // then every earlier date that still has unmarked classes, newest date first.
     private void LoadAttendance()
     {
-        if (AttendanceDatePicker.SelectedDate is not DateTime selectedDate)
-            return;
-
-        var date = DateOnly.FromDateTime(selectedDate);
+        var today = DateOnly.FromDateTime(DateTime.Today);
         var semesterStart = _settings.GetSemesterStartDate();
-        var canGenerate = semesterStart is not null && date >= semesterStart.Value;
-        var canEdit = date <= DateOnly.FromDateTime(DateTime.Today);
+        var scrollOffset = CardsScroll.VerticalOffset;
+        var cards = new List<DayCard>();
 
-        if (canGenerate && canEdit)
-            _attendance.GenerateMissingBetween(date, date);
-
-        var entries = _showPending
-            ? _attendance.GetPendingAttendance(DateOnly.FromDateTime(DateTime.Today))
-            : _attendance.GetAttendanceForDate(date, allowUnmarked: true);
-
-        var rows = entries.Select(entry => new AttendanceRow(
-            entry,
-            entry.IsManual
-                ? $"Added manually · {FormatHours(entry.ScheduledDurationMinutes)}"
-                : _showPending
-                    ? $"{entry.AttendanceDate:dd MMM yyyy} · {entry.ScheduledStart}–{entry.ScheduledEnd}"
-                    : entry.ScheduledStart is null || entry.ScheduledEnd is null
-                        ? "No scheduled time"
-                        : $"{entry.ScheduledStart}–{entry.ScheduledEnd}",
-            entry.Status ?? AttendanceStatus.NotMarked,
-            entry.IsManual || _showPending || entry.AttendanceDate > DateOnly.FromDateTime(DateTime.Today) || (canEdit && canGenerate))).ToArray();
-
-        DateControls.Visibility = _showPending ? Visibility.Collapsed : Visibility.Visible;
-        PendingHeader.Visibility = _showPending ? Visibility.Visible : Visibility.Collapsed;
-        ByDateButton.Background = _showPending ? System.Windows.Media.Brushes.Transparent : (System.Windows.Media.Brush)FindResource("SurfaceBackgroundBrush");
-        PendingButton.Background = _showPending ? (System.Windows.Media.Brush)FindResource("SurfaceBackgroundBrush") : System.Windows.Media.Brushes.Transparent;
-        AttendanceList.ItemsSource = rows;
-        EmptyStateText.Visibility = rows.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
-        if (rows.Length == 0)
+        if (semesterStart is not null && semesterStart.Value <= today)
         {
-            EmptyStateText.Text = _showPending
-                ? semesterStart is null
-                    ? "Choose a semester start date in Settings to generate attendance records."
-                    : "No unmarked classes remain for today or earlier."
-                : !canEdit
-                    ? "Future classes appear in Timetable and Calendar; they are not pending attendance."
-                    : semesterStart is null
-                        ? "Choose a semester start date in Settings to generate attendance records."
-                        : date < semesterStart.Value
-                            ? $"This date is before the selected semester start ({semesterStart:dd MMM yyyy})."
-                            : "No classes are scheduled on this date.";
+            // There is no date picker any more, so make sure every class from the semester start
+            // through today has a record. Records that already exist are skipped.
+            _attendance.GenerateMissingBetween(semesterStart.Value, today);
+
+            var todayRows = _attendance.GetAttendanceForDate(today, allowUnmarked: true)
+                .OrderBy(entry => entry.ScheduledStart is null ? 1 : 0)
+                .ThenBy(entry => entry.ScheduledStart, StringComparer.Ordinal)
+                .Select(entry => new AttendanceRow(entry, DescribeTime(entry),
+                    entry.Status ?? AttendanceStatus.NotMarked))
+                .ToArray();
+            cards.Add(DayCard.ForToday(today, todayRows));
+
+            cards.AddRange(_attendance.GetPendingAttendance(today)
+                .Where(entry => entry.AttendanceDate < today)
+                .GroupBy(entry => entry.AttendanceDate)
+                .OrderByDescending(group => group.Key)
+                .Select(group => DayCard.ForEarlierDay(group.Key,
+                    group.Select(entry => new AttendanceRow(entry, DescribeTime(entry),
+                        AttendanceStatus.NotMarked)).ToArray())));
         }
+
+        CardsList.ItemsSource = cards;
+
+        var hasCards = cards.Count > 0;
+        EmptyStateText.Visibility = hasCards ? Visibility.Collapsed : Visibility.Visible;
+        if (!hasCards)
+        {
+            EmptyStateText.Text = semesterStart is null
+                ? "Choose a semester start date in Settings to generate attendance records."
+                : $"The semester starts on {semesterStart:dd MMM yyyy}. Classes will appear here from that day.";
+        }
+        NothingElseText.Visibility = cards.Count == 1 ? Visibility.Visible : Visibility.Collapsed;
+
+        // Keep the scroll position, so marking a class far down the page does not jump back to the top.
+        CardsScroll.UpdateLayout();
+        CardsScroll.ScrollToVerticalOffset(scrollOffset);
     }
+
+    private static string DescribeTime(AttendanceEntry entry) =>
+        entry.IsManual
+            ? $"Added manually · {FormatHours(entry.ScheduledDurationMinutes)}"
+            : entry.ScheduledStart is null || entry.ScheduledEnd is null
+                ? "No scheduled time"
+                : $"{entry.ScheduledStart}–{entry.ScheduledEnd}";
 
     private void Present_Click(object sender, RoutedEventArgs e) => SetStatus(sender, AttendanceStatus.Present);
 
@@ -132,9 +140,16 @@ public partial class AttendanceView : UserControl
         var dateBox = new DatePicker
         {
             Height = 38,
-            SelectedDate = initialDate ?? AttendanceDatePicker.SelectedDate ?? DateTime.Today,
+            SelectedDate = initialDate ?? DateTime.Today,
             IsEnabled = !lockDate,
             Margin = new Thickness(0, 6, 0, 14)
+        };
+        // DatePicker has no Padding of its own; the text lives in the template's PART_TextBox.
+        // Adjust its padding so the date text lines up with the other fields.
+        dateBox.Loaded += (_, _) =>
+        {
+            if (dateBox.Template.FindName("PART_TextBox", dateBox) is System.Windows.Controls.Primitives.DatePickerTextBox textBox)
+                textBox.Padding = new Thickness(DateTextPaddingLeft, 0, 0, 0);
         };
         var statusBox = new ComboBox
         {
@@ -148,7 +163,7 @@ public partial class AttendanceView : UserControl
             SelectedIndex = 0,
             Margin = new Thickness(0, 6, 0, 14)
         };
-        var durationBox = new TextBox { Height = 38, Text = "1", VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 6, 0, 18) };
+        var durationBox = new TextBox { Height = 38, Text = "1", Padding = new Thickness(DurationTextPaddingLeft, 6, 6, 6), VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 6, 0, 18) };
 
         var save = new Button
         {
@@ -233,10 +248,6 @@ public partial class AttendanceView : UserControl
         var status = (StatusChoice)statusBox.SelectedItem;
         var date = dateBox.SelectedDate!.Value;
         _attendance.AddManualEntry(chosenSubject.Id, DateOnly.FromDateTime(date), status.Status, minutes);
-
-        // Jump to the day that was just edited so the new entry is visible straight away.
-        _showPending = false;
-        AttendanceDatePicker.SelectedDate = date;
         LoadAttendance();
     }
 
@@ -246,22 +257,39 @@ public partial class AttendanceView : UserControl
     private sealed record SubjectChoice(long Id, string Label) { public override string ToString() => Label; }
     private sealed record StatusChoice(AttendanceStatus Status, string Label) { public override string ToString() => Label; }
 
-    private void ShowByDate_Click(object sender, RoutedEventArgs e)
+    // One card on the page: a date, a one-line summary, and that date's class rows.
+    private sealed class DayCard
     {
-        _showPending = false;
-        LoadAttendance();
-    }
+        public string Title { get; }
+        public string Summary { get; }
+        public bool IsToday { get; }
+        public IReadOnlyList<AttendanceRow> Rows { get; }
 
-    private void ShowPending_Click(object sender, RoutedEventArgs e)
-    {
-        _showPending = true;
-        LoadAttendance();
-    }
+        // Today's title is larger and shows the TODAY badge; earlier dates are quieter.
+        public double TitleFontSize => IsToday ? 22 : 16;
+        public Visibility BadgeVisibility => IsToday ? Visibility.Visible : Visibility.Collapsed;
 
-    private void AttendanceDatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (IsLoaded)
-            LoadAttendance();
+        private DayCard(string title, string summary, bool isToday, IReadOnlyList<AttendanceRow> rows)
+        {
+            Title = title;
+            Summary = summary;
+            IsToday = isToday;
+            Rows = rows;
+        }
+
+        public static DayCard ForToday(DateOnly date, IReadOnlyList<AttendanceRow> rows)
+        {
+            var marked = rows.Count(row => row.SelectedStatus != AttendanceStatus.NotMarked);
+            var summary = rows.Count == 0 ? "No classes today"
+                : marked == rows.Count ? "All done for today"
+                : $"{marked} of {rows.Count} marked";
+            return new DayCard(FormatTitle(date), summary, true, rows);
+        }
+
+        public static DayCard ForEarlierDay(DateOnly date, IReadOnlyList<AttendanceRow> rows) =>
+            new(FormatTitle(date), $"{rows.Count} unmarked {(rows.Count == 1 ? "class" : "classes")}", false, rows);
+
+        private static string FormatTitle(DateOnly date) => date.ToString("dddd, d MMM yyyy");
     }
 
     private sealed class AttendanceRow
@@ -269,7 +297,6 @@ public partial class AttendanceView : UserControl
         public AttendanceEntry Entry { get; }
         public string ScheduledTime { get; }
         public AttendanceStatus SelectedStatus { get; }
-        public bool CanEdit { get; }
 
         public bool IsPresent => SelectedStatus == AttendanceStatus.Present;
         public bool IsAbsent => SelectedStatus == AttendanceStatus.Absent;
@@ -278,13 +305,11 @@ public partial class AttendanceView : UserControl
         // The Delete button only appears on records that were added by hand.
         public Visibility DeleteVisibility => Entry.IsManual ? Visibility.Visible : Visibility.Collapsed;
 
-        public AttendanceRow(AttendanceEntry entry, string scheduledTime,
-            AttendanceStatus selectedStatus, bool canEdit)
+        public AttendanceRow(AttendanceEntry entry, string scheduledTime, AttendanceStatus selectedStatus)
         {
             Entry = entry;
             ScheduledTime = scheduledTime;
             SelectedStatus = selectedStatus;
-            CanEdit = canEdit;
         }
     }
 }

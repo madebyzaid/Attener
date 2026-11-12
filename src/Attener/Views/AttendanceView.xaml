@@ -3,9 +3,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="Transparent">
     <UserControl.Resources>
+        <!-- One class row inside a day card. -->
         <DataTemplate x:Key="AttendanceTemplate">
-            <Border Background="{StaticResource SurfaceBackgroundBrush}" CornerRadius="10"
-                    Padding="18" Margin="0,0,0,10">
+            <Border Background="#191C23" CornerRadius="10" Padding="16,12" Margin="0,0,0,8">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -19,16 +19,13 @@
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                         <ToggleButton Content="Present" Style="{StaticResource StatusToggleStyle}"
                                       Tag="{StaticResource PresentBrush}"
-                                      IsChecked="{Binding IsPresent, Mode=OneWay}"
-                                      IsEnabled="{Binding CanEdit}" Click="Present_Click" />
+                                      IsChecked="{Binding IsPresent, Mode=OneWay}" Click="Present_Click" />
                         <ToggleButton Content="Absent" Style="{StaticResource StatusToggleStyle}"
                                       Tag="{StaticResource AbsentBrush}"
-                                      IsChecked="{Binding IsAbsent, Mode=OneWay}"
-                                      IsEnabled="{Binding CanEdit}" Click="Absent_Click" />
+                                      IsChecked="{Binding IsAbsent, Mode=OneWay}" Click="Absent_Click" />
                         <ToggleButton Content="Cancelled" Style="{StaticResource StatusToggleStyle}"
                                       Tag="{StaticResource CancelledBrush}"
-                                      IsChecked="{Binding IsCancelled, Mode=OneWay}"
-                                      IsEnabled="{Binding CanEdit}" Click="Cancelled_Click" />
+                                      IsChecked="{Binding IsCancelled, Mode=OneWay}" Click="Cancelled_Click" />
                         <Button Content="Delete" Click="DeleteManual_Click"
                                 Visibility="{Binding DeleteVisibility}"
                                 Margin="14,0,0,0" Padding="14,0" Height="38"
@@ -38,11 +35,44 @@
                 </Grid>
             </Border>
         </DataTemplate>
+
+        <!-- One card per date. Today's card keeps the TODAY badge and slightly emphasized title,
+             but no accent border so it matches the other day cards. -->
+        <DataTemplate x:Key="DayCardTemplate">
+            <Border CornerRadius="14" Padding="20,18,20,10" Margin="0,0,0,14">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="{StaticResource SurfaceBackgroundBrush}" />
+                        <Setter Property="BorderBrush" Value="#2B303B" />
+                        <Setter Property="BorderThickness" Value="1" />
+                    </Style>
+                </Border.Style>
+                <StackPanel>
+                    <Grid Margin="0,0,0,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Title}" FontSize="{Binding TitleFontSize}"
+                                       FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <Border Background="{StaticResource AccentBrush}" CornerRadius="6" Padding="8,3"
+                                    Margin="12,0,0,0" VerticalAlignment="Center"
+                                    Visibility="{Binding BadgeVisibility}">
+                                <TextBlock Text="TODAY" FontSize="11" FontWeight="Bold" Foreground="#111318" />
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="{Binding Summary}" FontSize="13"
+                                   Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center" />
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding Rows}" ItemTemplate="{StaticResource AttendanceTemplate}" />
+                </StackPanel>
+            </Border>
+        </DataTemplate>
     </UserControl.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -50,38 +80,25 @@
 
         <StackPanel>
             <TextBlock Text="Attendance" FontSize="28" FontWeight="SemiBold" />
-            <TextBlock Text="Mark each scheduled class once for the selected date, or add an entry by hand."
+            <TextBlock Text="Mark today's classes, then catch up on earlier ones that are still unmarked."
                        FontSize="14" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,7,0,0" />
         </StackPanel>
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,22,0,0">
-            <Button x:Name="ByDateButton" Content="By date" Click="ShowByDate_Click"
-                    Padding="13,7" Margin="0,0,8,0" BorderThickness="0" Cursor="Hand" />
-            <Button x:Name="PendingButton" Content="Pending" Click="ShowPending_Click"
-                    Padding="13,7" BorderThickness="0" Cursor="Hand" />
-            <Button Content="+ Add entry" Click="AddManual_Click" Margin="16,0,0,0"
+            <Button Content="+ Add entry" Click="AddManual_Click"
                     Padding="14,7" Background="{StaticResource AccentBrush}" Foreground="#111318"
                     FontWeight="SemiBold" BorderThickness="0" Cursor="Hand"
                     ToolTip="Record attendance by hand for any date" />
         </StackPanel>
 
-        <Border x:Name="DateControls" Grid.Row="2" Background="{StaticResource SurfaceBackgroundBrush}"
-                CornerRadius="12" Padding="16" Margin="0,12,0,0" HorizontalAlignment="Left">
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock Text="Date" VerticalAlignment="Center" Margin="0,0,12,0"
-                           Foreground="{StaticResource SecondaryTextBrush}" />
-                <DatePicker x:Name="AttendanceDatePicker" Width="190" Height="40"
-                            SelectedDateChanged="AttendanceDatePicker_SelectedDateChanged" />
-            </StackPanel>
-        </Border>
-        <StackPanel x:Name="PendingHeader" Grid.Row="2" Orientation="Horizontal"
-                    Margin="0,18,0,0" Visibility="Collapsed">
-            <TextBlock Text="Unmarked classes up to today" FontSize="15" FontWeight="SemiBold" />
-        </StackPanel>
-
-        <Grid Grid.Row="3" Margin="0,18,0,0">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <ItemsControl x:Name="AttendanceList" ItemTemplate="{StaticResource AttendanceTemplate}" />
+        <Grid Grid.Row="2" Margin="0,18,0,0">
+            <ScrollViewer x:Name="CardsScroll" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <ItemsControl x:Name="CardsList" ItemTemplate="{StaticResource DayCardTemplate}" />
+                    <TextBlock x:Name="NothingElseText" Text="No earlier classes are waiting."
+                               Foreground="{StaticResource SecondaryTextBrush}" FontSize="13"
+                               HorizontalAlignment="Center" Margin="0,6,0,20" Visibility="Collapsed" />
+                </StackPanel>
             </ScrollViewer>
             <TextBlock x:Name="EmptyStateText" Text="Choose a semester start date in Settings to generate attendance records."
                        Foreground="{StaticResource SecondaryTextBrush}" FontSize="14"

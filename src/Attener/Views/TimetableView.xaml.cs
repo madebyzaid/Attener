@@ -88,7 +88,8 @@ public partial class TimetableView : UserControl
         EndHourPicker.IsEnabled = !_readOnly;
         HistoryNote.Text = _readOnly
             ? "Read-only. This is how your classes were scheduled in that period."
-            : "Changes here apply from today onward. Earlier days are never changed.";
+            : string.Empty;
+        HistoryNote.Visibility = _readOnly ? Visibility.Visible : Visibility.Collapsed;
         BuildGrid();
     }
 
