@@ -156,10 +156,11 @@
                 <ColumnDefinition Width="3*" MinWidth="450" />
             </Grid.ColumnDefinitions>
 
-            <Border Background="{StaticResource SurfaceBackgroundBrush}" CornerRadius="12" Padding="16">
+            <Border Background="{StaticResource SurfaceBackgroundBrush}" CornerRadius="12" Padding="16"
+                    VerticalAlignment="Top">
                 <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
