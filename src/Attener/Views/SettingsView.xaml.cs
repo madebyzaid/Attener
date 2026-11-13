@@ -14,6 +14,7 @@ public partial class SettingsView : UserControl
     private readonly SemesterSettingsRepository _settings = new(DatabaseLocation.GetPath());
     private readonly AttendanceRepository _attendance = new(DatabaseLocation.GetPath());
     private readonly DataResetRepository _reset = new(DatabaseLocation.GetPath());
+    private readonly AttendanceTargetRepository _target = new(DatabaseLocation.GetPath());
     private readonly string _databasePath = DatabaseLocation.GetPath();
 
     public SettingsView()
@@ -27,6 +28,31 @@ public partial class SettingsView : UserControl
         var startDate = _settings.GetSemesterStartDate();
         SemesterStartPicker.SelectedDate = startDate?.ToDateTime(TimeOnly.MinValue);
         GenerationMessage.Text = "";
+        TargetBox.Text = _target.GetTarget().ToString(CultureInfo.InvariantCulture);
+        TargetMessage.Text = "";
+    }
+
+    private void SaveTarget_Click(object sender, RoutedEventArgs e)
+    {
+        if (!int.TryParse(TargetBox.Text.Trim().TrimEnd('%'), NumberStyles.None, CultureInfo.InvariantCulture, out var percent)
+            || percent < AttendanceTargetRepository.MinTarget || percent > AttendanceTargetRepository.MaxTarget)
+        {
+            MessageBox.Show(
+                $"Enter a whole number between {AttendanceTargetRepository.MinTarget} and {AttendanceTargetRepository.MaxTarget}.",
+                "Check the target", MessageBoxButton.OK, MessageBoxImage.Information);
+            TargetBox.Text = _target.GetTarget().ToString(CultureInfo.InvariantCulture);
+            return;
+        }
+
+        _target.SaveTarget(percent);
+        TargetBox.Text = percent.ToString(CultureInfo.InvariantCulture);
+        TargetMessage.Text = $"Attendance target saved: {percent}%.";
+    }
+
+    private void TargetBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Enter)
+            SaveTarget_Click(sender, e);
     }
 
     private void GenerateRecords_Click(object sender, RoutedEventArgs e)

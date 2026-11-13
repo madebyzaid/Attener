@@ -33,6 +33,29 @@
             <Border Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="#2B303B"
                     BorderThickness="1" CornerRadius="16" Padding="24" Margin="0,18,0,0">
                 <StackPanel>
+                    <TextBlock Text="Attendance target" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock Text="The minimum attendance your college requires. Statistics uses it to show how many hours you can still miss, or need to attend."
+                               Foreground="{StaticResource SecondaryTextBrush}" FontSize="14"
+                               TextWrapping="Wrap" MaxWidth="800" HorizontalAlignment="Left"
+                               Margin="0,9,0,18" />
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBox x:Name="TargetBox" Width="90" Height="40" Padding="12,9" FontSize="14"
+                                 VerticalContentAlignment="Center" TextAlignment="Center"
+                                 KeyDown="TargetBox_KeyDown" />
+                        <TextBlock Text="%" FontSize="14" VerticalAlignment="Center" Margin="8,0,0,0" />
+                        <Button Content="Save target" Margin="14,0,0,0" Padding="18,0" Height="40"
+                                Background="{StaticResource AccentBrush}" Foreground="#111318"
+                                FontWeight="SemiBold" BorderThickness="0" Cursor="Hand"
+                                Click="SaveTarget_Click" />
+                    </StackPanel>
+                    <TextBlock x:Name="TargetMessage" Foreground="{StaticResource SecondaryTextBrush}"
+                               FontSize="13" TextWrapping="Wrap" Margin="0,14,0,0" />
+                </StackPanel>
+            </Border>
+
+            <Border Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="#2B303B"
+                    BorderThickness="1" CornerRadius="16" Padding="24" Margin="0,18,0,0">
+                <StackPanel>
                     <TextBlock Text="Temporary test data" FontSize="20" FontWeight="SemiBold" />
                     <TextBlock Text="Seed a realistic mock semester, including class timetable, attendance and a few manual records. This clears the current database first."
                                Foreground="{StaticResource SecondaryTextBrush}" FontSize="14"
