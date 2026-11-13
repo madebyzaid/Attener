@@ -12,14 +12,15 @@ A single-user, offline-first Windows desktop app for tracking class attendance b
 
 - Add and archive subjects while preserving their attendance history.
 - Build a weekly timetable on an hourly grid; adjacent hours for the same subject become one class.
-- Choose the hours the grid shows with a clock picker; classes outside them are cropped from the chosen date onward.
-- Edit the weekly timetable; a change applies from today onward and earlier days are never touched. Unmarked records from today onward are updated to match; marked attendance is never touched.
-- Browse earlier timetables read-only: each period in which the timetable was the same is listed with its dates.
-- Select a calendar date to see each class time and its attendance status.
+- Choose the hours the grid shows with a clock picker; classes outside them are cropped from today onward.
+- Edit the current weekly timetable; a change applies from today onward and earlier days are never touched.
+- Earlier timetables can be edited too: each period in which the timetable was the same is listed with its dates, and a change there only affects those dates.
+- Editing a timetable never touches marked attendance. Unmarked records in the edited dates are replaced to match the new classes, and any that are missing are created up to today.
+- Select a calendar date to see each class time and its attendance status, and to mark or change it.
 - Select the semester start date and generate historical Not Marked records. Moving it later deletes the earlier records after a confirmation.
-- Mark attendance by date or work from the pending list. Each class counts its full scheduled duration.
+- The Attendance page shows today's classes in a highlighted card at the top, followed by one card for each earlier date that still has unmarked classes. Each class counts its full scheduled duration.
 - Add attendance by hand for any date (past, today or future): pick a subject, status and duration. Hand-added entries can be deleted.
-- View overall and subject-wise attendance statistics.
+- View subject-wise attendance statistics.
 - Permanently delete a subject, or all data, from the app.
 
 ## Local data

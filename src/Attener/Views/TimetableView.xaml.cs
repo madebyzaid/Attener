@@ -31,9 +31,9 @@ public partial class TimetableView : UserControl
     private Dictionary<(int Day, int Hour), long> _assignments = [];
     private Dictionary<long, string> _names = [];
 
-    // The timetable is edited for today onward only. Picking an older timetable from the history list
-    // shows how classes were scheduled back then, read-only.
-    private bool _readOnly;
+    // The current timetable is edited from today onward. Picking an older timetable from the history list
+    // lets you edit how classes were scheduled in that period only; _period is that period (null = current).
+    private TimetableRepository.TimetablePeriod? _period;
     private DateOnly _gridDate = Today;
     private int _gridStart = TimetableSettingsRepository.DefaultStartHour;
     private int _gridEnd = TimetableSettingsRepository.DefaultEndHour;
@@ -57,7 +57,7 @@ public partial class TimetableView : UserControl
     }
 
     // Fills the list at the top: the current timetable first, then every earlier one, newest first.
-    private void LoadHistory()
+    private void LoadHistory(DateOnly? keepDate = null)
     {
         var today = Today;
         var history = _timetable.GetHistory();
@@ -74,22 +74,28 @@ public partial class TimetableView : UserControl
 
         _loadingHistory = true;
         HistoryBox.ItemsSource = choices;
-        HistoryBox.SelectedIndex = 0;
+        // After editing an earlier timetable, stay on the period that contains keepDate.
+        var keepIndex = keepDate is null ? -1 : choices.FindIndex(choice =>
+            choice.Period is not null && choice.Period.Start <= keepDate.Value
+            && (choice.Period.End is null || choice.Period.End > keepDate.Value));
+        HistoryBox.SelectedIndex = keepIndex < 0 ? 0 : keepIndex;
         _loadingHistory = false;
     }
 
-    // Shows the timetable picked in the history list: today's (editable) or an older one (read-only).
+    // Shows the timetable picked in the history list: the current one, or an earlier one (both editable).
     private void ShowSelectedTimetable()
     {
         var choice = HistoryBox.SelectedItem as HistoryChoice;
-        _readOnly = choice?.Period is not null;
-        _gridDate = choice?.Period?.Start ?? Today;
-        StartHourPicker.IsEnabled = !_readOnly;
-        EndHourPicker.IsEnabled = !_readOnly;
-        HistoryNote.Text = _readOnly
-            ? "Read-only. This is how your classes were scheduled in that period."
-            : string.Empty;
-        HistoryNote.Visibility = _readOnly ? Visibility.Visible : Visibility.Collapsed;
+        _period = choice?.Period;
+        _gridDate = _period?.Start ?? Today;
+        // The visible hours belong to the current timetable, so they can only be changed there.
+        StartHourPicker.IsEnabled = _period is null;
+        EndHourPicker.IsEnabled = _period is null;
+        HistoryNote.Text = _period is null
+            ? string.Empty
+            : $"Editing {_period.Start:dd MMM yyyy} to {_period.LastDay:dd MMM yyyy}. " +
+              "Changes only affect those dates; marked attendance is kept.";
+        HistoryNote.Visibility = _period is null ? Visibility.Collapsed : Visibility.Visible;
         BuildGrid();
     }
 
@@ -133,10 +139,10 @@ public partial class TimetableView : UserControl
         LoadAssignments();
 
         // An older timetable can have classes outside the hours currently shown (they were only cropped
-        // from a later date), so a read-only view widens the grid to show all of them.
+        // from a later date), so the view of an earlier timetable widens the grid to show all of them.
         _gridStart = _startHour;
         _gridEnd = _endHour;
-        if (_readOnly && _assignments.Count > 0)
+        if (_period is not null && _assignments.Count > 0)
         {
             _gridStart = Math.Min(_gridStart, _assignments.Keys.Min(key => key.Hour));
             _gridEnd = Math.Max(_gridEnd, _assignments.Keys.Max(key => key.Hour) + 1);
@@ -184,16 +190,16 @@ public partial class TimetableView : UserControl
             Background = id == 0 ? (Brush)FindResource("SurfaceBackgroundBrush") : (Brush)FindResource("AccentBrush"),
             Foreground = id == 0 ? (Brush)FindResource("SecondaryTextBrush") : Brushes.Black,
             BorderThickness = new Thickness(0),
-            Cursor = _readOnly ? Cursors.Arrow : Cursors.Hand,
+            Cursor = Cursors.Hand,
             ToolTip = $"{Days[day]} {firstHour:00}:00–{firstHour + span:00}:00"
         };
-        if (!_readOnly) button.Click += Cell_Click;
+        button.Click += Cell_Click;
 
         // The container holds the cell button, plus a hover-only "−" button for assigned blocks.
         var container = new Grid { Margin = new Thickness(2), Background = Brushes.Transparent };
         container.Children.Add(button);
 
-        if (id != 0 && !_readOnly)
+        if (id != 0)
         {
             var remove = new Button
             {
@@ -254,7 +260,6 @@ public partial class TimetableView : UserControl
 
     private void Cell_Click(object sender, RoutedEventArgs e)
     {
-        if (_readOnly) return;
         if (sender is not Button { Tag: ValueTuple<int, int, int> block } button) return;
         var (day, firstHour, span) = block;
 
@@ -278,7 +283,6 @@ public partial class TimetableView : UserControl
 
     private void RemoveBlock_Click(object sender, RoutedEventArgs e)
     {
-        if (_readOnly) return;
         if (sender is not Button { Tag: ValueTuple<int, int, int> block }) return;
         var (day, firstHour, span) = block;
         // Remove every hour that belongs to this block, not just one.
@@ -287,32 +291,32 @@ public partial class TimetableView : UserControl
 
     private void ChangeHours(int day, int[] hours, long? subjectId)
     {
-        if (_readOnly) return;
         foreach (var hour in hours)
         {
             if (subjectId is null) _assignments.Remove((day, hour)); else _assignments[(day, hour)] = subjectId.Value;
         }
         try
         {
-            // Edits always apply from today onward. Earlier days keep the timetable they had.
-            var date = Today;
+            // The current timetable is edited from today onward (earlier days keep what they had).
+            // An earlier timetable is edited over its own dates only, from its first day up to its last.
+            var fromDate = _period?.Start ?? Today;
+            var until = _period?.End;
             var dayOfWeek = (int)(day == 6 ? DayOfWeek.Sunday : (DayOfWeek)(day + 1));
-
-            var existing = _timetable.GetWeeklySessions(date).Where(s => s.DayOfWeek == dayOfWeek).ToArray();
-            foreach (var existingSubject in existing.Select(s => s.SubjectId).Distinct()) _timetable.RemoveWeeklySession(existingSubject, dayOfWeek, date);
 
             // Rebuild the WHOLE day (not just the visible hours) so hidden classes are kept.
             var allHours = Enumerable.Range(DayStartHour, DayEndHour - DayStartHour).Select(h => (Hour: h, Id: _assignments.GetValueOrDefault((day, h)))).ToArray();
+            var classes = new List<(long SubjectId, TimeOnly Start, TimeOnly End)>();
             for (var i = 0; i < allHours.Length;)
             {
                 if (allHours[i].Id == 0) { i++; continue; }
                 var id = allHours[i].Id; var start = allHours[i].Hour; var end = start + 1; i++;
                 while (i < allHours.Length && allHours[i].Id == id) { end++; i++; }
-                _timetable.SaveWeeklySession(id, dayOfWeek, new TimeOnly(start, 0), new TimeOnly(end, 0), date);
+                classes.Add((id, new TimeOnly(start, 0), new TimeOnly(end, 0)));
             }
-            SyncAttendance(date);
-            LoadHistory();
-            BuildGrid();
+            _timetable.ReplaceDay(dayOfWeek, fromDate, until, classes);
+            SyncAttendance(fromDate, until);
+            LoadHistory(_period is null ? null : fromDate);
+            ShowSelectedTimetable();
         }
         catch (Exception ex) { MessageBox.Show($"Could not update this day. {ex.Message}", "Timetable update failed", MessageBoxButton.OK, MessageBoxImage.Error); BuildGrid(); }
     }
@@ -320,7 +324,9 @@ public partial class TimetableView : UserControl
     // After a timetable change from this date, bring the stored attendance records in line with it:
     // Not Marked records whose class no longer exists are deleted, and missing records for scheduled
     // classes are created. Marked records (Present, Absent, Cancelled) are never touched.
-    private void SyncAttendance(DateOnly fromDate)
+    // untilExclusive is the day after the last changed day (null = the change runs onward);
+    // records are only created up to today either way.
+    private void SyncAttendance(DateOnly fromDate, DateOnly? untilExclusive = null)
     {
         _attendance.DeleteStaleUnmarkedFrom(fromDate);
 
@@ -329,7 +335,11 @@ public partial class TimetableView : UserControl
             return;
 
         var start = fromDate > semesterStart.Value ? fromDate : semesterStart.Value;
-        _attendance.GenerateMissingBetween(start, DateOnly.FromDateTime(DateTime.Today));
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var end = untilExclusive is null || untilExclusive.Value.AddDays(-1) > today
+            ? today
+            : untilExclusive.Value.AddDays(-1);
+        _attendance.GenerateMissingBetween(start, end);
     }
 
     private void HourPicker_TimeCommitted(object? sender, EventArgs e) => ApplyHours();
@@ -341,7 +351,7 @@ public partial class TimetableView : UserControl
     // shortened or removed from the selected date onward; earlier dates and attendance are not touched.
     private void ApplyHours()
     {
-        if (_applyingHours || _readOnly) return;
+        if (_applyingHours || _period is not null) return;
         _applyingHours = true;
         try
         {

@@ -242,6 +242,134 @@ public sealed class TimetableRepository
         return deleted + closed > 0;
     }
 
+    // Replaces ONE weekday's classes over the date range [fromDate, untilDate) with the given classes.
+    // "untilDate" is exclusive; null means "from fromDate onward" (how the current timetable is edited).
+    // Only classes of subjects that are shown on "fromDate" are replaced (same rule as GetWeeklySessions).
+    // A class that started before "fromDate" is closed on "fromDate", and a class that runs past "untilDate" carries on
+    // from "untilDate" with its original times, so nothing outside the range changes.
+    // Everything happens in one transaction: either it all works or nothing changes.
+    public void ReplaceDay(int dayOfWeek, DateOnly fromDate, DateOnly? untilDate,
+        IReadOnlyList<(long SubjectId, TimeOnly Start, TimeOnly End)> classes)
+    {
+        if (dayOfWeek is < 0 or > 6)
+            throw new ArgumentOutOfRangeException(nameof(dayOfWeek));
+        if (untilDate is not null && untilDate.Value <= fromDate)
+            throw new ArgumentException("The end of the period must be after its start.");
+        if (classes.Any(item => item.End <= item.Start))
+            throw new ArgumentException("The end time must be later than the start time.");
+
+        var fromText = FormatDate(fromDate);
+        var toText = untilDate is null ? null : FormatDate(untilDate.Value);
+
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+
+        var overlapping = new List<ReplacedRow>();
+        using (var select = connection.CreateCommand())
+        {
+            select.Transaction = transaction;
+            select.CommandText = """
+                SELECT ws.Id, ws.SubjectId, ws.StartTime, ws.EndTime,
+                       ws.EffectiveFrom, ws.EffectiveTo, ws.EndedByEndDate
+                FROM WeeklySessions ws
+                JOIN Subjects s ON s.Id = ws.SubjectId
+                WHERE ws.DayOfWeek = $dayOfWeek
+                  AND (s.IsArchived = 0 OR s.ArchivedOn > $from)
+                  AND ($to IS NULL OR ws.EffectiveFrom < $to)
+                  AND (ws.EffectiveTo IS NULL OR ws.EffectiveTo > $from);
+                """;
+            select.Parameters.AddWithValue("$dayOfWeek", dayOfWeek);
+            select.Parameters.AddWithValue("$from", fromText);
+            select.Parameters.AddWithValue("$to", (object?)toText ?? DBNull.Value);
+            using var reader = select.ExecuteReader();
+            while (reader.Read())
+            {
+                overlapping.Add(new ReplacedRow(
+                    reader.GetInt64(0), reader.GetInt64(1), reader.GetString(2), reader.GetString(3),
+                    reader.GetString(4), reader.IsDBNull(5) ? null : reader.GetString(5), reader.GetInt32(6)));
+            }
+        }
+
+        foreach (var row in overlapping)
+        {
+            var startsBefore = string.CompareOrdinal(row.EffectiveFrom, fromText) < 0;
+            var runsPast = toText is not null
+                && (row.EffectiveTo is null || string.CompareOrdinal(row.EffectiveTo, toText) > 0);
+
+            if (startsBefore)
+            {
+                // Keep the part before the range: it now stops where the range starts.
+                using var close = connection.CreateCommand();
+                close.Transaction = transaction;
+                close.CommandText = "UPDATE WeeklySessions SET EffectiveTo = $date, EndedByEndDate = 0 WHERE Id = $id;";
+                close.Parameters.AddWithValue("$date", fromText);
+                close.Parameters.AddWithValue("$id", row.Id);
+                close.ExecuteNonQuery();
+
+                if (runsPast)
+                {
+                    // It also runs past the range, so the part after the range carries on unchanged.
+                    using var rest = connection.CreateCommand();
+                    rest.Transaction = transaction;
+                    rest.CommandText = """
+                        INSERT INTO WeeklySessions
+                            (SubjectId, DayOfWeek, StartTime, EndTime, EffectiveFrom, EffectiveTo, EndedByEndDate)
+                        VALUES ($subjectId, $dayOfWeek, $start, $end, $from, $to, $ended);
+                        """;
+                    rest.Parameters.AddWithValue("$subjectId", row.SubjectId);
+                    rest.Parameters.AddWithValue("$dayOfWeek", dayOfWeek);
+                    rest.Parameters.AddWithValue("$start", row.StartTime);
+                    rest.Parameters.AddWithValue("$end", row.EndTime);
+                    rest.Parameters.AddWithValue("$from", toText);
+                    rest.Parameters.AddWithValue("$to", (object?)row.EffectiveTo ?? DBNull.Value);
+                    rest.Parameters.AddWithValue("$ended", row.EndedByEndDate);
+                    rest.ExecuteNonQuery();
+                }
+            }
+            else
+            {
+                using var change = connection.CreateCommand();
+                change.Transaction = transaction;
+                if (runsPast)
+                {
+                    // Starts inside the range but runs past it: only the part after the range is kept.
+                    change.CommandText = "UPDATE WeeklySessions SET EffectiveFrom = $date WHERE Id = $id;";
+                    change.Parameters.AddWithValue("$date", toText);
+                }
+                else
+                {
+                    change.CommandText = "DELETE FROM WeeklySessions WHERE Id = $id;";
+                }
+                change.Parameters.AddWithValue("$id", row.Id);
+                change.ExecuteNonQuery();
+            }
+        }
+
+        foreach (var item in classes)
+        {
+            using var insert = connection.CreateCommand();
+            insert.Transaction = transaction;
+            insert.CommandText = """
+                INSERT INTO WeeklySessions
+                    (SubjectId, DayOfWeek, StartTime, EndTime, EffectiveFrom, EffectiveTo, EndedByEndDate)
+                VALUES ($subjectId, $dayOfWeek, $start, $end, $from, $to, 0);
+                """;
+            insert.Parameters.AddWithValue("$subjectId", item.SubjectId);
+            insert.Parameters.AddWithValue("$dayOfWeek", dayOfWeek);
+            insert.Parameters.AddWithValue("$start", FormatTime(item.Start));
+            insert.Parameters.AddWithValue("$end", FormatTime(item.End));
+            insert.Parameters.AddWithValue("$from", fromText);
+            insert.Parameters.AddWithValue("$to", (object?)toText ?? DBNull.Value);
+            insert.ExecuteNonQuery();
+        }
+
+        transaction.Commit();
+    }
+
+    private sealed record ReplacedRow(long Id, long SubjectId, string StartTime, string EndTime,
+        string EffectiveFrom, string? EffectiveTo, int EndedByEndDate);
+
     // How many weekly classes, from effectiveOn onward, do not fit inside startHour..endHour.
     public int CountOutsideHours(DateOnly effectiveOn, int startHour, int endHour)
     {
