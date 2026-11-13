@@ -26,15 +26,18 @@
             <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="FontSize" Value="14" />
-            <Setter Property="Margin" Value="0,0,0,4" />
+            <Setter Property="Margin" Value="0,0,0,3" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
                         <Border x:Name="PillBorder" Background="{TemplateBinding Background}"
-                                CornerRadius="22" Padding="16,11">
-                            <ContentPresenter VerticalAlignment="Center" />
+                                CornerRadius="7" Padding="12,9">
+                            <ContentPresenter VerticalAlignment="Center"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <MultiTrigger>
@@ -42,12 +45,12 @@
                                     <Condition Property="IsMouseOver" Value="True" />
                                     <Condition Property="IsChecked" Value="False" />
                                 </MultiTrigger.Conditions>
-                                <Setter TargetName="PillBorder" Property="Background" Value="{StaticResource SurfaceBackgroundBrush}" />
+                                <Setter TargetName="PillBorder" Property="Background" Value="{StaticResource HoverBrush}" />
                                 <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
                             </MultiTrigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="PillBorder" Property="Background" Value="{StaticResource PrimaryTextBrush}" />
-                                <Setter Property="Foreground" Value="#111318" />
+                                <Setter TargetName="PillBorder" Property="Background" Value="{StaticResource AccentBrush}" />
+                                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -56,69 +59,81 @@
         </Style>
     </Window.Resources>
 
-    <Grid>
+    <Grid Background="{StaticResource WindowBackgroundBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="42" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="248" />
+            <ColumnDefinition Width="204" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <!-- Sidebar: same colour as the window, no separate box -->
-        <DockPanel Grid.Column="0" Margin="20,26,12,20" LastChildFill="True">
-            <StackPanel DockPanel.Dock="Top" Margin="12,0,0,30">
-                <TextBlock Text="ATTENER" Foreground="{StaticResource AccentBrush}" FontSize="22" FontWeight="Bold" />
-                <TextBlock Text="Your semester, clearly tracked" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12" Margin="0,6,0,0" />
-            </StackPanel>
+        <Border Grid.Row="0" Grid.ColumnSpan="2" Background="{StaticResource SidebarBackgroundBrush}"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
+            <TextBlock Text="ATTENER  —  ATTENDANCE TRACKER" FontSize="12" FontWeight="SemiBold"
+                       Foreground="{StaticResource SecondaryTextBrush}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
 
-            <!-- Settings pinned to the bottom (must come before the last child, which fills the rest) -->
-            <StackPanel DockPanel.Dock="Bottom">
-                <Border Height="1" Background="#2B303B" Margin="8,0,8,12" />
-                <RadioButton Tag="Settings" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE713;" />
-                        <TextBlock Style="{StaticResource NavLabelStyle}" Text="Settings" />
-                    </StackPanel>
-                </RadioButton>
-            </StackPanel>
+        <Border Grid.Row="1" Grid.Column="0" Background="{StaticResource SidebarBackgroundBrush}"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
+            <DockPanel Margin="12,18,12,14" LastChildFill="True">
+                <StackPanel DockPanel.Dock="Top" Margin="8,0,0,26">
+                    <TextBlock Text="ATTENER" FontSize="18" FontWeight="SemiBold" />
+                    <TextBlock Text="Your semester, clearly tracked" Foreground="{StaticResource SecondaryTextBrush}"
+                               FontSize="11" Margin="0,4,0,0" />
+                </StackPanel>
 
-            <StackPanel>
-                <TextBlock Text="WORKSPACE" Foreground="{StaticResource SecondaryTextBrush}" FontSize="10" FontWeight="SemiBold" Margin="16,0,0,10" />
+                <StackPanel DockPanel.Dock="Bottom">
+                    <Border Height="1" Background="{StaticResource BorderBrush}" Margin="8,0,8,10" />
+                    <RadioButton Tag="Settings" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE713;" />
+                            <TextBlock Style="{StaticResource NavLabelStyle}" Text="Settings" />
+                        </StackPanel>
+                    </RadioButton>
+                </StackPanel>
 
-                <RadioButton Tag="Attendance" IsChecked="True" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE73A;" />
-                        <TextBlock Style="{StaticResource NavLabelStyle}" Text="Attendance" />
-                    </StackPanel>
-                </RadioButton>
-                <RadioButton Tag="Statistics" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE9D9;" />
-                        <TextBlock Style="{StaticResource NavLabelStyle}" Text="Statistics" />
-                    </StackPanel>
-                </RadioButton>
-                <RadioButton Tag="Timetable" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE121;" />
-                        <TextBlock Style="{StaticResource NavLabelStyle}" Text="Timetable" />
-                    </StackPanel>
-                </RadioButton>
-                <RadioButton Tag="Calendar" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE787;" />
-                        <TextBlock Style="{StaticResource NavLabelStyle}" Text="Calendar" />
-                    </StackPanel>
-                </RadioButton>
-                <RadioButton Tag="Subjects" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE8F1;" />
-                        <TextBlock Style="{StaticResource NavLabelStyle}" Text="Subjects" />
-                    </StackPanel>
-                </RadioButton>
-            </StackPanel>
-        </DockPanel>
+                <StackPanel>
+                    <TextBlock Text="WORKSPACE" Foreground="{StaticResource SecondaryTextBrush}"
+                               FontSize="10" FontWeight="SemiBold" Margin="12,0,0,8" />
+                    <RadioButton Tag="Attendance" IsChecked="True" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE73A;" />
+                            <TextBlock Style="{StaticResource NavLabelStyle}" Text="Attendance" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton Tag="Statistics" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE9D9;" />
+                            <TextBlock Style="{StaticResource NavLabelStyle}" Text="Statistics" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton Tag="Timetable" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE121;" />
+                            <TextBlock Style="{StaticResource NavLabelStyle}" Text="Timetable" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton Tag="Calendar" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE787;" />
+                            <TextBlock Style="{StaticResource NavLabelStyle}" Text="Calendar" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton Tag="Subjects" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE8F1;" />
+                            <TextBlock Style="{StaticResource NavLabelStyle}" Text="Subjects" />
+                        </StackPanel>
+                    </RadioButton>
+                </StackPanel>
+            </DockPanel>
+        </Border>
 
-        <!-- Content: one big rounded panel inset from the window edges -->
-        <Border Grid.Column="1" Margin="0,12,12,12" CornerRadius="20"
-                Background="{StaticResource SidebarBackgroundBrush}" Padding="40,34">
+        <Border Grid.Row="1" Grid.Column="1" Background="{StaticResource WindowBackgroundBrush}"
+                Padding="26,22,26,20">
             <Grid>
                 <views:AttendanceView x:Name="AttendancePage" />
                 <views:StatisticsView x:Name="StatisticsPage" Visibility="Collapsed" />

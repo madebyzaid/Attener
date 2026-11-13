@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using Attener.Features.Attendance;
 using Attener.Features.Settings;
+using Attener.Features.Subjects;
 using Attener.Infrastructure.Database;
 using Microsoft.Data.Sqlite;
 
@@ -152,19 +153,14 @@ public partial class SettingsView : UserControl
         if (lastDay > new DateOnly(2026, 11, 18))
             lastDay = new DateOnly(2026, 11, 18);
 
-        var subjectNames = new[]
+        var subjects = new[]
         {
-            "AM101L",
-            "ME105L",
-            "CO101L",
-            "EC101L",
-            "CS103L",
-            "AEC18",
-            "ME105P",
-            "CO101P",
-            "CS103P",
-            "EC101P",
-            "AM101T"
+            (Name: "AM101", Types: new[] { SubjectType.Lecture, SubjectType.Tutorial }),
+            (Name: "ME105", Types: new[] { SubjectType.Lecture, SubjectType.Practical }),
+            (Name: "CO101", Types: new[] { SubjectType.Lecture, SubjectType.Practical }),
+            (Name: "EC101", Types: new[] { SubjectType.Lecture, SubjectType.Practical }),
+            (Name: "CS103", Types: new[] { SubjectType.Lecture, SubjectType.Practical }),
+            (Name: "AEC18", Types: new[] { SubjectType.Lecture })
         };
 
         var subjectIdByName = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
@@ -186,7 +182,7 @@ public partial class SettingsView : UserControl
             setting.ExecuteNonQuery();
         }
 
-        foreach (var name in subjectNames)
+        foreach (var subjectInfo in subjects)
         {
             // All subjects are active in this data set.
             var isArchived = 0;
@@ -195,7 +191,7 @@ public partial class SettingsView : UserControl
             using var insertSubject = connection.CreateCommand();
             insertSubject.Transaction = transaction;
             insertSubject.CommandText = "INSERT INTO Subjects (Name, IsArchived, ArchivedOn) VALUES ($name, $isArchived, $archivedOn);";
-            insertSubject.Parameters.AddWithValue("$name", name);
+            insertSubject.Parameters.AddWithValue("$name", subjectInfo.Name);
             insertSubject.Parameters.AddWithValue("$isArchived", isArchived);
             insertSubject.Parameters.AddWithValue("$archivedOn", archivedOn ?? (object)DBNull.Value);
             insertSubject.ExecuteNonQuery();
@@ -204,7 +200,18 @@ public partial class SettingsView : UserControl
             getId.Transaction = transaction;
             getId.CommandText = "SELECT last_insert_rowid();";
             var lastId = getId.ExecuteScalar();
-            subjectIdByName[name] = Convert.ToInt64(lastId);
+            var subjectId = Convert.ToInt64(lastId);
+            subjectIdByName[subjectInfo.Name] = subjectId;
+
+            foreach (var type in subjectInfo.Types)
+            {
+                using var insertType = connection.CreateCommand();
+                insertType.Transaction = transaction;
+                insertType.CommandText = "INSERT INTO SubjectClassTypes (SubjectId, Type) VALUES ($subjectId, $type);";
+                insertType.Parameters.AddWithValue("$subjectId", subjectId);
+                insertType.Parameters.AddWithValue("$type", type.ToString());
+                insertType.ExecuteNonQuery();
+            }
         }
 
         // Four different weekly timetables, one per month. DayOfWeek: 0 = Sunday, 1 = Monday ... 6 = Saturday.
@@ -275,10 +282,12 @@ public partial class SettingsView : UserControl
 
         foreach (var session in weeklySessions)
         {
+            var classType = ResolveSeedClassType(session.Subject);
             using var insertSession = connection.CreateCommand();
             insertSession.Transaction = transaction;
-            insertSession.CommandText = "INSERT INTO WeeklySessions (SubjectId, DayOfWeek, StartTime, EndTime, EffectiveFrom, EffectiveTo, EndedByEndDate) VALUES ($subjectId, $dayOfWeek, $startTime, $endTime, $effectiveFrom, $effectiveTo, 0);";
-            insertSession.Parameters.AddWithValue("$subjectId", subjectIdByName[session.Subject]);
+            insertSession.CommandText = "INSERT INTO WeeklySessions (SubjectId, ClassType, DayOfWeek, StartTime, EndTime, EffectiveFrom, EffectiveTo, EndedByEndDate) VALUES ($subjectId, $classType, $dayOfWeek, $startTime, $endTime, $effectiveFrom, $effectiveTo, 0);";
+            insertSession.Parameters.AddWithValue("$subjectId", subjectIdByName[classType.SubjectName]);
+            insertSession.Parameters.AddWithValue("$classType", classType.Type.ToString());
             insertSession.Parameters.AddWithValue("$dayOfWeek", session.DayOfWeek);
             insertSession.Parameters.AddWithValue("$startTime", session.Start);
             insertSession.Parameters.AddWithValue("$endTime", session.End);
@@ -319,10 +328,12 @@ public partial class SettingsView : UserControl
         for (var i = 0; i < occurrences.Count; i++)
         {
             var (session, date) = occurrences[i];
+            var classType = ResolveSeedClassType(session.Subject);
             using var insertRecord = connection.CreateCommand();
             insertRecord.Transaction = transaction;
-            insertRecord.CommandText = "INSERT INTO AttendanceRecords (SubjectId, AttendanceDate, Status, ScheduledStart, ScheduledEnd, ScheduledDurationMinutes, ActualDurationMinutes, IsManual) VALUES ($subjectId, $attendanceDate, $status, $scheduledStart, $scheduledEnd, $scheduledDurationMinutes, NULL, 0);";
-            insertRecord.Parameters.AddWithValue("$subjectId", subjectIdByName[session.Subject]);
+            insertRecord.CommandText = "INSERT INTO AttendanceRecords (SubjectId, ClassType, AttendanceDate, Status, ScheduledStart, ScheduledEnd, ScheduledDurationMinutes, ActualDurationMinutes, IsManual) VALUES ($subjectId, $classType, $attendanceDate, $status, $scheduledStart, $scheduledEnd, $scheduledDurationMinutes, NULL, 0);";
+            insertRecord.Parameters.AddWithValue("$subjectId", subjectIdByName[classType.SubjectName]);
+            insertRecord.Parameters.AddWithValue("$classType", classType.Type.ToString());
             insertRecord.Parameters.AddWithValue("$attendanceDate", date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
             insertRecord.Parameters.AddWithValue("$status", statuses[i]);
             insertRecord.Parameters.AddWithValue("$scheduledStart", session.Start);
@@ -342,10 +353,12 @@ public partial class SettingsView : UserControl
 
         foreach (var entry in manualEntries)
         {
+            var classType = ResolveSeedClassType(entry.Subject);
             using var insertManual = connection.CreateCommand();
             insertManual.Transaction = transaction;
-            insertManual.CommandText = "INSERT INTO AttendanceRecords (SubjectId, AttendanceDate, Status, ScheduledStart, ScheduledEnd, ScheduledDurationMinutes, ActualDurationMinutes, IsManual) VALUES ($subjectId, $attendanceDate, $status, NULL, NULL, $scheduledDurationMinutes, NULL, 1);";
-            insertManual.Parameters.AddWithValue("$subjectId", subjectIdByName[entry.Subject]);
+            insertManual.CommandText = "INSERT INTO AttendanceRecords (SubjectId, ClassType, AttendanceDate, Status, ScheduledStart, ScheduledEnd, ScheduledDurationMinutes, ActualDurationMinutes, IsManual) VALUES ($subjectId, $classType, $attendanceDate, $status, NULL, NULL, $scheduledDurationMinutes, NULL, 1);";
+            insertManual.Parameters.AddWithValue("$subjectId", subjectIdByName[classType.SubjectName]);
+            insertManual.Parameters.AddWithValue("$classType", classType.Type.ToString());
             insertManual.Parameters.AddWithValue("$attendanceDate", entry.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
             insertManual.Parameters.AddWithValue("$status", entry.Status);
             insertManual.Parameters.AddWithValue("$scheduledDurationMinutes", entry.Duration);
@@ -362,6 +375,21 @@ public partial class SettingsView : UserControl
         string End,
         string EffectiveFrom,
         string? EffectiveTo);
+
+    private static (string SubjectName, SubjectType Type) ResolveSeedClassType(string key)
+    {
+        if (key == "AEC18")
+            return (key, SubjectType.Lecture);
+
+        var type = key[^1] switch
+        {
+            'L' => SubjectType.Lecture,
+            'T' => SubjectType.Tutorial,
+            'P' => SubjectType.Practical,
+            _ => throw new InvalidOperationException($"Unknown seeded class type in {key}.")
+        };
+        return (key[..^1], type);
+    }
 
     private static int GetMinutes(string time)
     {
@@ -381,7 +409,7 @@ public partial class SettingsView : UserControl
             Content = "Delete everything",
             Padding = new Thickness(14, 7, 14, 7),
             IsEnabled = false,
-            Background = new SolidColorBrush(Color.FromRgb(0xD6, 0x45, 0x50)),
+            Background = (Brush)FindResource("DangerBrush"),
             Foreground = Brushes.White,
             BorderThickness = new Thickness(0),
             Cursor = System.Windows.Input.Cursors.Hand

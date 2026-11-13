@@ -142,6 +142,10 @@ public partial class CalendarView : UserControl
     {
         public AttendanceEntry Entry { get; }
         public string SubjectName => Entry.SubjectName;
+        public string Professor => Entry.Professor;
+        public string Venue => Entry.Venue;
+        public bool HasProfessor => Entry.HasProfessor;
+        public bool HasVenue => Entry.HasVenue;
         public string TimeRange { get; }
         public bool CanEdit { get; }
         public AttendanceStatus SelectedStatus => Entry.Status ?? AttendanceStatus.NotMarked;

@@ -3,15 +3,23 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-        <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#111318" />
-        <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#191C23" />
-        <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="#20242D" />
-        <SolidColorBrush x:Key="PrimaryTextBrush" Color="#F2F3F5" />
-        <SolidColorBrush x:Key="SecondaryTextBrush" Color="#A5AAB5" />
-        <SolidColorBrush x:Key="AccentBrush" Color="#8B9CFF" />
-        <SolidColorBrush x:Key="PresentBrush" Color="#5BD68A" />
-        <SolidColorBrush x:Key="AbsentBrush" Color="#de546b" />
-        <SolidColorBrush x:Key="CancelledBrush" Color="#a25af0" />
+        <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#1B1D1F" />
+        <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#17191B" />
+        <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="#1A1D1F" />
+        <SolidColorBrush x:Key="PrimaryTextBrush" Color="#E6E9EC" />
+        <SolidColorBrush x:Key="SecondaryTextBrush" Color="#98A0A6" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#1558D6" />
+        <SolidColorBrush x:Key="BorderBrush" Color="#29343B" />
+        <SolidColorBrush x:Key="HoverBrush" Color="#252A2D" />
+        <SolidColorBrush x:Key="MutedBrush" Color="#69737A" />
+        <SolidColorBrush x:Key="SuccessBrush" Color="#2DD4BF" />
+        <SolidColorBrush x:Key="WarningBrush" Color="#D88900" />
+        <SolidColorBrush x:Key="DangerBrush" Color="#F52F63" />
+        <SolidColorBrush x:Key="PresentBrush" Color="#007A59" />
+        <SolidColorBrush x:Key="AbsentBrush" Color="#F52F63" />
+        <SolidColorBrush x:Key="CancelledBrush" Color="#9C5CFF" />
+        <FontFamily x:Key="AppFontFamily">pack://application:,,,/Assets/Fonts/#Inter</FontFamily>
+        <FontFamily x:Key="MonoFontFamily">Consolas</FontFamily>
 
         <Style x:Key="StatusToggleStyle" TargetType="ToggleButton">
             <Setter Property="Foreground" Value="{Binding Tag, RelativeSource={RelativeSource Self}}" />
@@ -38,10 +46,10 @@
                             </ContentPresenter>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="Background" Value="#2B303B" /></Trigger>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="Background" Value="{StaticResource HoverBrush}" /></Trigger>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="Chrome" Property="Background" Value="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" />
-                                <Setter Property="Foreground" Value="#111318" />
+                                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45" /></Trigger>
                         </ControlTemplate.Triggers>
@@ -52,17 +60,37 @@
 
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
-            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
         </Style>
 
         <Style TargetType="TextBox">
             <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
             <Setter Property="Background" Value="{StaticResource SurfaceBackgroundBrush}" />
-            <Setter Property="BorderBrush" Value="#454B58" />
-            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
             <Setter Property="FontSize" Value="13" />
             <Setter Property="Padding" Value="10,6" />
             <Setter Property="CaretBrush" Value="{StaticResource PrimaryTextBrush}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Box" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"
+                                          Focusable="False" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Box" Property="Opacity" Value="0.55" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- ===== Dark calendar =====
@@ -89,7 +117,7 @@
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="Chrome" Property="Background" Value="#343B49" />
+                                        <Setter TargetName="Chrome" Property="Background" Value="{StaticResource HoverBrush}" />
                                     </Trigger>
                                     <Trigger Property="IsEnabled" Value="False">
                                         <Setter Property="Opacity" Value="0.35" />
@@ -104,7 +132,7 @@
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="Chrome" Property="Background" Value="#343B49" />
+                                        <Setter TargetName="Chrome" Property="Background" Value="{StaticResource HoverBrush}" />
                                     </Trigger>
                                     <Trigger Property="IsEnabled" Value="False">
                                         <Setter Property="Opacity" Value="0.35" />
@@ -119,7 +147,7 @@
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="Chrome" Property="Background" Value="#343B49" />
+                                        <Setter TargetName="Chrome" Property="Background" Value="{StaticResource HoverBrush}" />
                                     </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>
@@ -209,17 +237,17 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="DayBorder" Property="Background" Value="#343B49" />
+                                <Setter TargetName="DayBorder" Property="Background" Value="{StaticResource HoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsToday" Value="True">
                                 <Setter TargetName="DayBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
                             </Trigger>
                             <Trigger Property="IsInactive" Value="True">
-                                <Setter Property="Foreground" Value="#6B7180" />
+                                <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="DayBorder" Property="Background" Value="{StaticResource AccentBrush}" />
-                                <Setter Property="Foreground" Value="#111318" />
+                                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
                             </Trigger>
                             <Trigger Property="IsBlackedOut" Value="True">
                                 <Setter Property="Opacity" Value="0.4" />
@@ -251,14 +279,14 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="MonthBorder" Property="Background" Value="#343B49" />
+                                <Setter TargetName="MonthBorder" Property="Background" Value="{StaticResource HoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsInactive" Value="True">
-                                <Setter Property="Foreground" Value="#6B7180" />
+                                <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
                             </Trigger>
                             <Trigger Property="HasSelectedDays" Value="True">
                                 <Setter TargetName="MonthBorder" Property="Background" Value="{StaticResource AccentBrush}" />
-                                <Setter Property="Foreground" Value="#111318" />
+                                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -269,7 +297,7 @@
         <Style x:Key="DarkCalendarStyle" TargetType="Calendar">
             <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
             <Setter Property="Background" Value="{StaticResource SurfaceBackgroundBrush}" />
-            <Setter Property="BorderBrush" Value="#454B58" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CalendarItemStyle" Value="{StaticResource DarkCalendarItemStyle}" />
             <Setter Property="CalendarDayButtonStyle" Value="{StaticResource DarkCalendarDayButtonStyle}" />
@@ -308,7 +336,7 @@
             </Border>
             <ControlTemplate.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter TargetName="Chrome" Property="Background" Value="#343B49" />
+                    <Setter TargetName="Chrome" Property="Background" Value="{StaticResource HoverBrush}" />
                 </Trigger>
             </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -316,9 +344,9 @@
         <Style TargetType="DatePicker">
             <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
             <Setter Property="Background" Value="{StaticResource SurfaceBackgroundBrush}" />
-            <Setter Property="BorderBrush" Value="#454B58" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
             <Setter Property="FontSize" Value="13" />
             <Setter Property="CalendarStyle" Value="{StaticResource DarkCalendarStyle}" />
             <Setter Property="Template">
@@ -401,7 +429,7 @@
                             <Popup x:Name="PART_Popup" Placement="Bottom" VerticalOffset="4"
                                    IsOpen="{TemplateBinding IsDropDownOpen}"
                                    AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
-                                <Border Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="#454B58"
+                                <Border Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}"
                                         BorderThickness="1" CornerRadius="10" Padding="4"
                                         MinWidth="{Binding ActualWidth, ElementName=Root}"
                                         MaxHeight="{TemplateBinding MaxDropDownHeight}">
@@ -413,7 +441,7 @@
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Box" Property="BorderBrush" Value="#6B7180" />
+                                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource MutedBrush}" />
                             </Trigger>
                             <Trigger Property="IsKeyboardFocusWithin" Value="True">
                                 <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
@@ -430,8 +458,8 @@
             </Setter>
             <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
             <Setter Property="Background" Value="{StaticResource SurfaceBackgroundBrush}" />
-            <Setter Property="BorderBrush" Value="#454B58" />
-            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
             <Setter Property="FontSize" Value="13" />
             <Setter Property="Padding" Value="12,6" />
         </Style>
@@ -465,11 +493,11 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="#343B49" />
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource HoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource AccentBrush}" />
-                                <Setter Property="Foreground" Value="#111318" />
+                                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.55" />
@@ -488,13 +516,13 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Thumb">
-                        <Border x:Name="Pill" Background="#3A4150" CornerRadius="4" />
+                        <Border x:Name="Pill" Background="{StaticResource BorderBrush}" CornerRadius="4" />
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Pill" Property="Background" Value="#4B5365" />
+                                <Setter TargetName="Pill" Property="Background" Value="{StaticResource SecondaryTextBrush}" />
                             </Trigger>
                             <Trigger Property="IsDragging" Value="True">
-                                <Setter TargetName="Pill" Property="Background" Value="#6B7180" />
+                                <Setter TargetName="Pill" Property="Background" Value="{StaticResource PrimaryTextBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -564,7 +592,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ContextMenu">
                         <Border Background="{StaticResource SurfaceBackgroundBrush}"
-                                BorderBrush="#454B58" BorderThickness="1"
+                                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
                                 CornerRadius="6" Padding="4">
                             <StackPanel IsItemsHost="True"
                                         KeyboardNavigation.DirectionalNavigation="Cycle" />
@@ -591,7 +619,7 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
                                 <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource AccentBrush}" />
-                                <Setter Property="Foreground" Value="#111318" />
+                                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.55" />
@@ -609,7 +637,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ToolTip">
                         <Border Background="{StaticResource SurfaceBackgroundBrush}"
-                                BorderBrush="#454B58" BorderThickness="1"
+                                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
                                 CornerRadius="6" Padding="10,6">
                             <ContentPresenter />
                         </Border>
@@ -634,7 +662,7 @@
         <Style TargetType="Button">
             <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
             <Setter Property="Background" Value="{StaticResource SurfaceBackgroundBrush}" />
-            <Setter Property="BorderBrush" Value="#454B58" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
             <Setter Property="FocusVisualStyle" Value="{StaticResource AccentFocusVisualStyle}" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -649,8 +677,8 @@
                             </ContentPresenter>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ButtonChrome" Property="Background" Value="#343B49"/><Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/></Trigger>
-                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="ButtonChrome" Property="Background" Value="#454B58"/></Trigger>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ButtonChrome" Property="Opacity" Value="0.88"/></Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="ButtonChrome" Property="Opacity" Value="0.72"/></Trigger>
                             <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.55"/></Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -674,7 +702,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ButtonBorder" Property="Background" Value="#292E39" />
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="{StaticResource HoverBrush}" />
                                 <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>

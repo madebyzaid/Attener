@@ -17,19 +17,27 @@ public partial class TimetableView : UserControl
     private readonly AttendanceRepository _attendance = new(DatabaseLocation.GetPath());
     private readonly SemesterSettingsRepository _semester = new(DatabaseLocation.GetPath());
     private static readonly string[] Days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    private static readonly (Color Fill, Color Border)[] SubjectTilePalette =
+    [
+        (Color.FromRgb(0x10, 0x37, 0x30), Color.FromRgb(0x00, 0xA8, 0x78)),
+        (Color.FromRgb(0x3A, 0x30, 0x0B), Color.FromRgb(0xD8, 0x89, 0x00)),
+        (Color.FromRgb(0x12, 0x2F, 0x58), Color.FromRgb(0x2F, 0x7B, 0xF5)),
+        (Color.FromRgb(0x2D, 0x20, 0x45), Color.FromRgb(0x9C, 0x5C, 0xFF)),
+        (Color.FromRgb(0x12, 0x35, 0x40), Color.FromRgb(0x00, 0xA6, 0xC8))
+    ];
 
     // Hours of the day that can hold classes. Stored times are HH:mm, so the day ends at 23:00.
     private const int DayStartHour = 0;
     private const int DayEndHour = TimetableSettingsRepository.LatestEndHour;
 
-    // The hours currently SHOWN in the grid (user-chosen). Changing them crops classes from the selected date onward;
-    // classes on earlier dates that lie outside the range are kept, just hidden.
+    // The selected timetable's visible hours. Changing them crops classes only within that timetable period.
     private int _startHour = TimetableSettingsRepository.DefaultStartHour;
     private int _endHour = TimetableSettingsRepository.DefaultEndHour;
+    private DateOnly _hourRangeStart = Today;
 
     private IReadOnlyList<SubjectSummary> _activeSubjects = [];
-    private Dictionary<(int Day, int Hour), long> _assignments = [];
-    private Dictionary<long, string> _names = [];
+    private Dictionary<(int Day, int Hour), ClassAssignment> _assignments = [];
+    private Dictionary<long, SubjectSummary> _subjectsById = [];
 
     // The current timetable is edited from today onward. Picking an older timetable from the history list
     // lets you edit how classes were scheduled in that period only; _period is that period (null = current).
@@ -40,6 +48,7 @@ public partial class TimetableView : UserControl
     private bool _loadingHistory;
 
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
+    private readonly record struct ClassAssignment(long SubjectId, SubjectType Type);
 
     public TimetableView()
     {
@@ -50,8 +59,9 @@ public partial class TimetableView : UserControl
     public void RefreshData()
     {
         _activeSubjects = _subjects.GetSubjects(includeArchived: false);
-        (_startHour, _endHour) = _hourSettings.GetHourRange();
-        ShowHourRange();
+        _subjectsById = _activeSubjects
+            .Concat(_subjects.GetSubjects(includeArchived: true))
+            .ToDictionary(subject => subject.Id);
         LoadHistory();
         ShowSelectedTimetable();
     }
@@ -67,10 +77,10 @@ public partial class TimetableView : UserControl
         {
             new(null, current is null
                 ? "Current timetable"
-                : $"Current timetable since {current.Start:dd MMM yyyy}")
+                : $"Current timetable since {current.Start:dd MMM yyyy}", current?.Start ?? today)
         };
         foreach (var period in history.Where(p => p.End is not null && p.End <= today).OrderByDescending(p => p.Start))
-            choices.Add(new HistoryChoice(period, $"{period.Start:dd MMM yyyy} to {period.LastDay:dd MMM yyyy}"));
+            choices.Add(new HistoryChoice(period, $"{period.Start:dd MMM yyyy} to {period.LastDay:dd MMM yyyy}", period.Start));
 
         _loadingHistory = true;
         HistoryBox.ItemsSource = choices;
@@ -88,9 +98,11 @@ public partial class TimetableView : UserControl
         var choice = HistoryBox.SelectedItem as HistoryChoice;
         _period = choice?.Period;
         _gridDate = _period?.Start ?? Today;
-        // The visible hours belong to the current timetable, so they can only be changed there.
-        StartHourPicker.IsEnabled = _period is null;
-        EndHourPicker.IsEnabled = _period is null;
+        _hourRangeStart = choice?.RangeStart ?? Today;
+        (_startHour, _endHour) = _hourSettings.GetHourRange(_hourRangeStart, _period is null);
+        ShowHourRange();
+        StartHourPicker.IsEnabled = true;
+        EndHourPicker.IsEnabled = true;
         HistoryNote.Text = _period is null
             ? string.Empty
             : $"Editing {_period.Start:dd MMM yyyy} to {_period.LastDay:dd MMM yyyy}. " +
@@ -105,7 +117,8 @@ public partial class TimetableView : UserControl
         ShowSelectedTimetable();
     }
 
-    private sealed record HistoryChoice(TimetableRepository.TimetablePeriod? Period, string Label)
+    private sealed record HistoryChoice(
+        TimetableRepository.TimetablePeriod? Period, string Label, DateOnly RangeStart)
     {
         public override string ToString() => Label;
     }
@@ -121,16 +134,15 @@ public partial class TimetableView : UserControl
     private void LoadAssignments()
     {
         _assignments = [];
-        _names = [];
         foreach (var session in _timetable.GetWeeklySessions(_gridDate))
         {
-            _names[session.SubjectId] = session.SubjectName;
             var start = TimeOnly.Parse(session.StartTime);
             var end = TimeOnly.Parse(session.EndTime);
             var first = Math.Max(DayStartHour, start.Hour);
             var last = Math.Min(DayEndHour, (int)Math.Ceiling(end.ToTimeSpan().TotalHours));
             var mondayIndex = session.DayOfWeek == 0 ? 6 : session.DayOfWeek - 1;
-            for (var hour = first; hour < last; hour++) _assignments[(mondayIndex, hour)] = session.SubjectId;
+            for (var hour = first; hour < last; hour++)
+                _assignments[(mondayIndex, hour)] = new ClassAssignment(session.SubjectId, session.Type);
         }
     }
 
@@ -138,21 +150,14 @@ public partial class TimetableView : UserControl
     {
         LoadAssignments();
 
-        // An older timetable can have classes outside the hours currently shown (they were only cropped
-        // from a later date), so the view of an earlier timetable widens the grid to show all of them.
         _gridStart = _startHour;
         _gridEnd = _endHour;
-        if (_period is not null && _assignments.Count > 0)
-        {
-            _gridStart = Math.Min(_gridStart, _assignments.Keys.Min(key => key.Hour));
-            _gridEnd = Math.Max(_gridEnd, _assignments.Keys.Max(key => key.Hour) + 1);
-        }
 
         TimetableGrid.Children.Clear(); TimetableGrid.RowDefinitions.Clear(); TimetableGrid.ColumnDefinitions.Clear();
         TimetableGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
         for (var hour = _gridStart; hour < _gridEnd; hour++) TimetableGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 78 });
         TimetableGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(42) });
-        for (var day = 0; day < 7; day++) TimetableGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(62) });
+        for (var day = 0; day < 7; day++) TimetableGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(84) });
         AddCell("Day", 0, 0, true);
         for (var hour = _gridStart; hour < _gridEnd; hour++) AddCell($"{hour:00}:00", hour - _gridStart + 1, 0, true);
 
@@ -162,34 +167,83 @@ public partial class TimetableView : UserControl
             var hour = _gridStart;
             while (hour < _gridEnd)
             {
-                _assignments.TryGetValue((day, hour), out var id);
+                var assignment = _assignments.GetValueOrDefault((day, hour));
 
-                // Count how many consecutive visible hours (including this one) have the same subject.
+                // Count consecutive visible hours assigned to the same subject and class type.
                 var span = 1;
-                if (id != 0)
+                if (assignment.SubjectId != 0)
                 {
-                    while (hour + span < _gridEnd && _assignments.GetValueOrDefault((day, hour + span)) == id)
+                    while (hour + span < _gridEnd
+                           && _assignments.GetValueOrDefault((day, hour + span)) == assignment)
                         span++;
                 }
 
-                AddHourButton(day, hour, span, id);
+                AddHourButton(day, hour, span, assignment);
                 hour += span;
             }
         }
     }
 
-    private void AddHourButton(int day, int firstHour, int span, long id)
+    private void AddHourButton(int day, int firstHour, int span, ClassAssignment assignment)
     {
-        var name = _names.GetValueOrDefault(id) ?? "";
+        var id = assignment.SubjectId;
+        object content = "";
+        if (id != 0 && _subjectsById.TryGetValue(id, out var subject))
+        {
+            var classDetails = subject.DetailsFor(assignment.Type);
+            var contentPanel = new StackPanel();
+            var title = new StackPanel { Orientation = Orientation.Horizontal };
+            title.Children.Add(new TextBlock
+            {
+                Text = subject.Name,
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            });
+            title.Children.Add(new Border
+            {
+                Background = (Brush)FindResource("HoverBrush"),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(4, 1, 4, 1),
+                Margin = new Thickness(5, 0, 0, 0),
+                Child = new TextBlock
+                {
+                    Text = assignment.Type.ToString(),
+                    FontSize = 8,
+                    Foreground = (Brush)FindResource("SecondaryTextBrush")
+                }
+            });
+            contentPanel.Children.Add(title);
+            if (classDetails.HasProfessor)
+                contentPanel.Children.Add(CreateTileDetail(classDetails.Professor));
+            if (classDetails.HasVenue)
+                contentPanel.Children.Add(CreateTileDetail(classDetails.Venue));
+            content = contentPanel;
+        }
+        var background = id == 0
+            ? (Brush)FindResource("SurfaceBackgroundBrush")
+            : new SolidColorBrush(SubjectTilePalette[(int)(id % SubjectTilePalette.Length)].Fill);
+        var borderBrush = id == 0
+            ? (Brush)FindResource("BorderBrush")
+            : new SolidColorBrush(SubjectTilePalette[(int)(id % SubjectTilePalette.Length)].Border);
+        TextBlock CreateTileDetail(string text) => new()
+        {
+            Text = text,
+            FontSize = 8,
+            Foreground = (Brush)FindResource("SecondaryTextBrush"),
+            TextTrimming = TextTrimming.CharacterEllipsis
+        };
+
         var button = new Button
         {
-            Content = name,
+            Content = content,
             Tag = (day, firstHour, span),
             Padding = new Thickness(4),
             FontSize = 11,
-            Background = id == 0 ? (Brush)FindResource("SurfaceBackgroundBrush") : (Brush)FindResource("AccentBrush"),
-            Foreground = id == 0 ? (Brush)FindResource("SecondaryTextBrush") : Brushes.Black,
-            BorderThickness = new Thickness(0),
+            Background = background,
+            Foreground = id == 0 ? (Brush)FindResource("SecondaryTextBrush") : (Brush)FindResource("PrimaryTextBrush"),
+            BorderBrush = borderBrush,
+            BorderThickness = new Thickness(1),
             Cursor = Cursors.Hand,
             ToolTip = $"{Days[day]} {firstHour:00}:00–{firstHour + span:00}:00"
         };
@@ -213,7 +267,7 @@ public partial class TimetableView : UserControl
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Top,
                 Margin = new Thickness(0, 4, 4, 0),
-                Background = new SolidColorBrush(Color.FromRgb(0x11, 0x13, 0x18)),
+                Background = (Brush)FindResource("HoverBrush"),
                 Foreground = Brushes.White,
                 BorderThickness = new Thickness(0),
                 Cursor = Cursors.Hand,
@@ -226,7 +280,7 @@ public partial class TimetableView : UserControl
             // control on top of it), so the hover look is driven by the whole container instead.
             var normalBackground = button.Background;
             var normalForeground = button.Foreground;
-            var hoverBackground = new SolidColorBrush(Color.FromRgb(0x34, 0x3B, 0x49));
+            var hoverBackground = (Brush)FindResource("HoverBrush");
             var hoverForeground = (Brush)FindResource("PrimaryTextBrush");
 
             container.MouseEnter += (_, _) =>
@@ -252,9 +306,27 @@ public partial class TimetableView : UserControl
 
     private void AddCell(string text, int column, int row, bool header)
     {
-        var block = new TextBlock { Text = text, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.SemiBold, Foreground = header ? (Brush)FindResource("PrimaryTextBrush") : Brushes.White };
-        // Rounded (radius 6) with the same 2 px gap as the class cells, so headers and cells line up.
-        var border = new Border { Child = block, Background = header ? (Brush)FindResource("SurfaceBackgroundBrush") : Brushes.Transparent, CornerRadius = new CornerRadius(6), Margin = new Thickness(2) };
+        var block = new TextBlock
+        {
+            Text = text,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            FontWeight = FontWeights.SemiBold,
+            FontSize = 11,
+            FontFamily = column > 0 && row == 0
+                ? (FontFamily)FindResource("MonoFontFamily")
+                : (FontFamily)FindResource("AppFontFamily"),
+            Foreground = (Brush)FindResource("PrimaryTextBrush")
+        };
+        var border = new Border
+        {
+            Child = block,
+            Background = header ? (Brush)FindResource("SurfaceBackgroundBrush") : Brushes.Transparent,
+            BorderBrush = (Brush)FindResource("BorderBrush"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(5),
+            Margin = new Thickness(1)
+        };
         Grid.SetColumn(border, column); Grid.SetRow(border, row); TimetableGrid.Children.Add(border);
     }
 
@@ -275,8 +347,15 @@ public partial class TimetableView : UserControl
         }
         foreach (var subject in _activeSubjects)
         {
-            var item = new MenuItem { Header = subject.Name }; var id = subject.Id;
-            item.Click += (_, _) => ChangeHours(cell.Day, [cell.Hour], id); menu.Items.Add(item);
+            var item = new MenuItem { Header = subject.Name };
+            foreach (var type in subject.Types)
+            {
+                var typeItem = new MenuItem { Header = type.ToString() };
+                var assignment = new ClassAssignment(subject.Id, type);
+                typeItem.Click += (_, _) => ChangeHours(cell.Day, [cell.Hour], assignment);
+                item.Items.Add(typeItem);
+            }
+            menu.Items.Add(item);
         }
         menu.PlacementTarget = button; menu.IsOpen = true;
     }
@@ -289,11 +368,12 @@ public partial class TimetableView : UserControl
         ChangeHours(day, Enumerable.Range(firstHour, span).ToArray(), null);
     }
 
-    private void ChangeHours(int day, int[] hours, long? subjectId)
+    private void ChangeHours(int day, int[] hours, ClassAssignment? assignment)
     {
         foreach (var hour in hours)
         {
-            if (subjectId is null) _assignments.Remove((day, hour)); else _assignments[(day, hour)] = subjectId.Value;
+            if (assignment is null) _assignments.Remove((day, hour));
+            else _assignments[(day, hour)] = assignment.Value;
         }
         try
         {
@@ -304,16 +384,23 @@ public partial class TimetableView : UserControl
             var dayOfWeek = (int)(day == 6 ? DayOfWeek.Sunday : (DayOfWeek)(day + 1));
 
             // Rebuild the WHOLE day (not just the visible hours) so hidden classes are kept.
-            var allHours = Enumerable.Range(DayStartHour, DayEndHour - DayStartHour).Select(h => (Hour: h, Id: _assignments.GetValueOrDefault((day, h)))).ToArray();
-            var classes = new List<(long SubjectId, TimeOnly Start, TimeOnly End)>();
+            var allHours = Enumerable.Range(DayStartHour, DayEndHour - DayStartHour)
+                .Select(h => (Hour: h, Assignment: _assignments.GetValueOrDefault((day, h)))).ToArray();
+            var classes = new List<(long SubjectId, SubjectType Type, TimeOnly Start, TimeOnly End)>();
             for (var i = 0; i < allHours.Length;)
             {
-                if (allHours[i].Id == 0) { i++; continue; }
-                var id = allHours[i].Id; var start = allHours[i].Hour; var end = start + 1; i++;
-                while (i < allHours.Length && allHours[i].Id == id) { end++; i++; }
-                classes.Add((id, new TimeOnly(start, 0), new TimeOnly(end, 0)));
+                if (allHours[i].Assignment.SubjectId == 0) { i++; continue; }
+                var classAssignment = allHours[i].Assignment;
+                var start = allHours[i].Hour; var end = start + 1; i++;
+                while (i < allHours.Length && allHours[i].Assignment == classAssignment) { end++; i++; }
+                classes.Add((classAssignment.SubjectId, classAssignment.Type,
+                    new TimeOnly(start, 0), new TimeOnly(end, 0)));
             }
             _timetable.ReplaceDay(dayOfWeek, fromDate, until, classes);
+            var updatedPeriod = _timetable.GetHistory().FirstOrDefault(period =>
+                period.Start <= fromDate && (period.End is null || period.End > fromDate));
+            _hourRangeStart = updatedPeriod?.Start ?? _hourRangeStart;
+            _hourSettings.SaveHourRange(_hourRangeStart, _startHour, _endHour);
             SyncAttendance(fromDate, until);
             LoadHistory(_period is null ? null : fromDate);
             ShowSelectedTimetable();
@@ -328,7 +415,7 @@ public partial class TimetableView : UserControl
     // records are only created up to today either way.
     private void SyncAttendance(DateOnly fromDate, DateOnly? untilExclusive = null)
     {
-        _attendance.DeleteStaleUnmarkedFrom(fromDate);
+        _attendance.DeleteStaleUnmarkedFrom(fromDate, untilExclusive);
 
         var semesterStart = _semester.GetSemesterStartDate();
         if (semesterStart is null)
@@ -347,11 +434,10 @@ public partial class TimetableView : UserControl
     // Guards against the message boxes below triggering another commit while they are open.
     private bool _applyingHours;
 
-    // Changing the hours takes effect straight away. Classes that fall outside the new hours are
-    // shortened or removed from the selected date onward; earlier dates and attendance are not touched.
+    // Changing the hours affects only the selected timetable period; marked attendance is preserved.
     private void ApplyHours()
     {
-        if (_applyingHours || _period is not null) return;
+        if (_applyingHours) return;
         _applyingHours = true;
         try
         {
@@ -375,18 +461,21 @@ public partial class TimetableView : UserControl
                 return;
             }
 
-            // Like every other change here, this applies from today onward.
-            var cropFrom = Today;
+            var cropFrom = _period?.Start ?? Today;
+            var until = _period?.End;
+            var affectedDates = until is null
+                ? $"{cropFrom:dd MMM yyyy} onward"
+                : $"{cropFrom:dd MMM yyyy} to {until.Value.AddDays(-1):dd MMM yyyy}";
 
             try
             {
-                var outside = _timetable.CountOutsideHours(cropFrom, start, end);
+                var outside = _timetable.CountOutsideHours(cropFrom, start, end, until);
                 if (outside > 0)
                 {
                     var answer = MessageBox.Show(
                         $"{outside} weekly {(outside == 1 ? "class falls" : "classes fall")} outside {start:00}:00 to {end:00}:00. " +
-                        $"Continuing will shorten or remove {(outside == 1 ? "it" : "them")} from {cropFrom:dd MMM yyyy} onward.\n\n" +
-                        "Earlier dates and attendance records are not changed. This cannot be undone.\n\nContinue?",
+                        $"Continuing will shorten or remove {(outside == 1 ? "it" : "them")} for {affectedDates}.\n\n" +
+                        "Other timetable periods and marked attendance are not changed. This cannot be undone.\n\nContinue?",
                         "Remove classes outside these hours?", MessageBoxButton.YesNo, MessageBoxImage.Warning);
                     if (answer != MessageBoxResult.Yes)
                     {
@@ -395,9 +484,12 @@ public partial class TimetableView : UserControl
                     }
                 }
 
-                _timetable.CropToHours(cropFrom, start, end);
-                _hourSettings.SaveHourRange(start, end);
-                SyncAttendance(cropFrom);
+                _timetable.CropToHours(cropFrom, until, start, end);
+                var selectedPeriod = _timetable.GetHistory().FirstOrDefault(period =>
+                    period.Start <= cropFrom && (period.End is null || period.End > cropFrom));
+                _hourRangeStart = selectedPeriod?.Start ?? _hourRangeStart;
+                _hourSettings.SaveHourRange(_hourRangeStart, start, end);
+                SyncAttendance(cropFrom, until);
             }
             catch (Exception ex)
             {
@@ -408,11 +500,8 @@ public partial class TimetableView : UserControl
                 return;
             }
 
-            _startHour = start;
-            _endHour = end;
-            ShowHourRange();
-            LoadHistory();
-            BuildGrid();
+            LoadHistory(_period is null ? null : cropFrom);
+            ShowSelectedTimetable();
         }
         finally
         {

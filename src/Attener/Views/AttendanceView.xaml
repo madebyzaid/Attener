@@ -5,15 +5,47 @@
     <UserControl.Resources>
         <!-- One class row inside a day card. -->
         <DataTemplate x:Key="AttendanceTemplate">
-            <Border Background="#191C23" CornerRadius="10" Padding="16,12" Margin="0,0,0,8">
+            <Border Background="{StaticResource WindowBackgroundBrush}" CornerRadius="7" Padding="14,10" Margin="0,0,0,7">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="{Binding Entry.SubjectName}" FontSize="15" FontWeight="SemiBold" />
-                        <TextBlock Text="{Binding ScheduledTime}" FontSize="12"
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Entry.SubjectName}" FontSize="15" FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
+                            <Border Background="{StaticResource HoverBrush}" CornerRadius="5"
+                                    Padding="7,3" Margin="8,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Entry.Type}" FontSize="10"
+                                           Foreground="{StaticResource SecondaryTextBrush}" />
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="{Binding Entry.Professor}" FontSize="11"
+                                   Foreground="{StaticResource SecondaryTextBrush}" Margin="0,3,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Entry.HasProfessor}" Value="False">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Text="{Binding Entry.Venue}" FontSize="11"
+                                   Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Entry.HasVenue}" Value="False">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Text="{Binding ScheduledTime}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}"
                                    Foreground="{StaticResource SecondaryTextBrush}" Margin="0,5,0,0" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -30,7 +62,7 @@
                                 Visibility="{Binding DeleteVisibility}"
                                 Margin="14,0,0,0" Padding="14,0" Height="38"
                                 Foreground="{StaticResource SecondaryTextBrush}"
-                                Background="#292E39" BorderThickness="0" Cursor="Hand" />
+                                Background="{StaticResource HoverBrush}" BorderThickness="0" Cursor="Hand" />
                     </StackPanel>
                 </Grid>
             </Border>
@@ -39,11 +71,11 @@
         <!-- One card per date. Today's card keeps the TODAY badge and slightly emphasized title,
              but no accent border so it matches the other day cards. -->
         <DataTemplate x:Key="DayCardTemplate">
-            <Border CornerRadius="14" Padding="20,18,20,10" Margin="0,0,0,14">
+            <Border CornerRadius="10" Padding="16,14,16,8" Margin="0,0,0,12">
                 <Border.Style>
                     <Style TargetType="Border">
                         <Setter Property="Background" Value="{StaticResource SurfaceBackgroundBrush}" />
-                        <Setter Property="BorderBrush" Value="#2B303B" />
+                        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
                         <Setter Property="BorderThickness" Value="1" />
                     </Style>
                 </Border.Style>
@@ -59,7 +91,8 @@
                             <Border Background="{StaticResource AccentBrush}" CornerRadius="6" Padding="8,3"
                                     Margin="12,0,0,0" VerticalAlignment="Center"
                                     Visibility="{Binding BadgeVisibility}">
-                                <TextBlock Text="TODAY" FontSize="11" FontWeight="Bold" Foreground="#111318" />
+                                <TextBlock Text="TODAY" FontSize="10" FontWeight="Bold"
+                                           Foreground="{StaticResource PrimaryTextBrush}" />
                             </Border>
                         </StackPanel>
                         <TextBlock Grid.Column="1" Text="{Binding Summary}" FontSize="13"
@@ -79,14 +112,14 @@
         </Grid.RowDefinitions>
 
         <StackPanel>
-            <TextBlock Text="Attendance" FontSize="28" FontWeight="SemiBold" />
+            <TextBlock Text="Attendance" FontSize="22" FontWeight="SemiBold" />
             <TextBlock Text="Mark today's classes, then catch up on earlier ones that are still unmarked."
-                       FontSize="14" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,7,0,0" />
+                       FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,5,0,0" />
         </StackPanel>
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,22,0,0">
             <Button Content="+ Add entry" Click="AddManual_Click"
-                    Padding="14,7" Background="{StaticResource AccentBrush}" Foreground="#111318"
+                    Padding="14,7" Background="{StaticResource AccentBrush}" Foreground="{StaticResource PrimaryTextBrush}"
                     FontWeight="SemiBold" BorderThickness="0" Cursor="Hand"
                     ToolTip="Record attendance by hand for any date" />
         </StackPanel>

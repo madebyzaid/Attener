@@ -5,9 +5,9 @@
              Background="Transparent">
     <UserControl.Resources>
         <!-- Same colours as the Attendance page buttons. -->
-        <SolidColorBrush x:Key="PresentDayBrush" Color="#5BD68A" />
-        <SolidColorBrush x:Key="AbsentDayBrush" Color="#de546b" />
-        <SolidColorBrush x:Key="CancelledDayBrush" Color="#a25af0" />
+        <SolidColorBrush x:Key="PresentDayBrush" Color="#007A59" />
+        <SolidColorBrush x:Key="AbsentDayBrush" Color="#F52F63" />
+        <SolidColorBrush x:Key="CancelledDayBrush" Color="#9C5CFF" />
 
         <!-- Turns a day's date + the calendar's Tag (date -> status) into a status word. -->
         <local:DayStatusConverter x:Key="DayStatusConverter" />
@@ -46,25 +46,25 @@
                         <ControlTemplate.Triggers>
                             <!-- When two triggers set the same thing, the one lower down wins. -->
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="DayBorder" Property="Background" Value="#343B49" />
-                                <Setter TargetName="DayBorder" Property="BorderBrush" Value="#6B7180" />
+                                <Setter TargetName="DayBorder" Property="Background" Value="{StaticResource HoverBrush}" />
+                                <Setter TargetName="DayBorder" Property="BorderBrush" Value="{StaticResource MutedBrush}" />
                             </Trigger>
                             <MultiTrigger>
                                 <MultiTrigger.Conditions>
                                     <Condition Property="IsInactive" Value="False" />
                                     <Condition Property="Tag" Value="Not Marked" />
                                 </MultiTrigger.Conditions>
-                                <Setter TargetName="DayBorder" Property="BorderBrush" Value="#6B7180" />
+                                <Setter TargetName="DayBorder" Property="BorderBrush" Value="{StaticResource MutedBrush}" />
                             </MultiTrigger>
                             <Trigger Property="IsToday" Value="True">
                                 <Setter TargetName="DayBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
                             </Trigger>
                             <Trigger Property="IsInactive" Value="True">
-                                <Setter Property="Foreground" Value="#6B7180" />
+                                <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="DayBorder" Property="Background" Value="{StaticResource AccentBrush}" />
-                                <Setter Property="Foreground" Value="#111318" />
+                                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
                             </Trigger>
                             <MultiTrigger>
                                 <MultiTrigger.Conditions>
@@ -72,7 +72,7 @@
                                     <Condition Property="Tag" Value="Present" />
                                 </MultiTrigger.Conditions>
                                 <Setter TargetName="DayBorder" Property="Background" Value="{StaticResource PresentDayBrush}" />
-                                <Setter Property="Foreground" Value="#111318" />
+                                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
                             </MultiTrigger>
                             <MultiTrigger>
                                 <MultiTrigger.Conditions>
@@ -80,7 +80,7 @@
                                     <Condition Property="Tag" Value="Absent" />
                                 </MultiTrigger.Conditions>
                                 <Setter TargetName="DayBorder" Property="Background" Value="{StaticResource AbsentDayBrush}" />
-                                <Setter Property="Foreground" Value="#111318" />
+                                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
                             </MultiTrigger>
                             <MultiTrigger>
                                 <MultiTrigger.Conditions>
@@ -88,7 +88,7 @@
                                     <Condition Property="Tag" Value="Cancelled" />
                                 </MultiTrigger.Conditions>
                                 <Setter TargetName="DayBorder" Property="Background" Value="{StaticResource CancelledDayBrush}" />
-                                <Setter Property="Foreground" Value="#111318" />
+                                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
                             </MultiTrigger>
                             <!-- The selected day gets a white ring, so it stays visible on a coloured cell. -->
                             <Trigger Property="IsSelected" Value="True">
@@ -104,7 +104,8 @@
         </Style>
 
         <DataTemplate x:Key="CalendarSessionTemplate">
-            <Border Background="{StaticResource SurfaceBackgroundBrush}" CornerRadius="10"
+            <Border Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1" CornerRadius="8"
                     Padding="14,12" Margin="0,0,0,10">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -112,8 +113,39 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="{Binding SubjectName}" FontSize="15" FontWeight="SemiBold"
-                                   TextTrimming="CharacterEllipsis" />
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding SubjectName}" FontSize="15" FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                            <Border Background="{StaticResource HoverBrush}" CornerRadius="5"
+                                    Padding="7,3" Margin="8,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Entry.Type}" FontSize="10"
+                                           Foreground="{StaticResource SecondaryTextBrush}" />
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="{Binding Entry.Professor}" FontSize="11"
+                                   Foreground="{StaticResource SecondaryTextBrush}" Margin="0,3,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasProfessor}" Value="False">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Text="{Binding Entry.Venue}" FontSize="11"
+                                   Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasVenue}" Value="False">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                         <TextBlock Text="{Binding TimeRange}" FontSize="12"
                                    Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,0" />
                         <TextBlock Text="Added manually" FontSize="11"
@@ -145,18 +177,19 @@
         </Grid.RowDefinitions>
 
         <StackPanel>
-            <TextBlock Text="Calendar" FontSize="28" FontWeight="SemiBold" />
+            <TextBlock Text="Calendar" FontSize="22" FontWeight="SemiBold" />
             <TextBlock Text="Choose a date to see each class, its scheduled time, and its attendance status."
-                       FontSize="14" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,7,0,0" />
+                       FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,5,0,0" />
         </StackPanel>
 
-        <Grid Grid.Row="1" Margin="0,22,0,0">
+        <Grid Grid.Row="1" Margin="0,18,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2*" MinWidth="320" />
                 <ColumnDefinition Width="3*" MinWidth="450" />
             </Grid.ColumnDefinitions>
 
-            <Border Background="{StaticResource SurfaceBackgroundBrush}" CornerRadius="12" Padding="16"
+            <Border Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1" CornerRadius="9" Padding="12"
                     VerticalAlignment="Top">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -189,7 +222,7 @@
                         <TextBlock Text="Cancelled" FontSize="12" Margin="6,0,18,0" VerticalAlignment="Center"
                                    Foreground="{StaticResource SecondaryTextBrush}" />
                         <Border Width="12" Height="12" CornerRadius="3" VerticalAlignment="Center"
-                                BorderBrush="#6B7180" BorderThickness="1.5" />
+                                BorderBrush="{StaticResource MutedBrush}" BorderThickness="1.5" />
                         <TextBlock Text="Not marked" FontSize="12" Margin="6,0,0,0" VerticalAlignment="Center"
                                    Foreground="{StaticResource SecondaryTextBrush}" />
                     </StackPanel>
@@ -212,7 +245,7 @@
                                    Foreground="{StaticResource SecondaryTextBrush}" Margin="0,5,0,0" />
                     </StackPanel>
                     <Button Grid.Column="1" Content="+ Add entry" Click="AddManual_Click" Margin="10,0,0,0"
-                            Padding="12,7" Background="{StaticResource AccentBrush}" Foreground="#111318"
+                            Padding="12,7" Background="{StaticResource AccentBrush}" Foreground="{StaticResource PrimaryTextBrush}"
                             FontWeight="SemiBold" BorderThickness="0" Cursor="Hand" />
                 </Grid>
 

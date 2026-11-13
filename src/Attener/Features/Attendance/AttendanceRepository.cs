@@ -1,5 +1,6 @@
 using System.Globalization;
 using Attener.Domain;
+using Attener.Features.Subjects;
 using Microsoft.Data.Sqlite;
 
 namespace Attener.Features.Attendance;
@@ -7,6 +8,7 @@ namespace Attener.Features.Attendance;
 public sealed record AttendanceEntry(
     long SubjectId,
     string SubjectName,
+    SubjectType Type,
     DateOnly AttendanceDate,
     string? ScheduledStart,
     string? ScheduledEnd,
@@ -15,7 +17,13 @@ public sealed record AttendanceEntry(
     int? ActualDurationMinutes,
     bool IsSaved,
     long Id = 0,
-    bool IsManual = false);
+    bool IsManual = false,
+    string Venue = "",
+    string Professor = "")
+{
+    public bool HasProfessor => !string.IsNullOrWhiteSpace(Professor);
+    public bool HasVenue => !string.IsNullOrWhiteSpace(Venue);
+}
 
 public sealed class AttendanceRepository
 {
@@ -50,10 +58,10 @@ public sealed class AttendanceRepository
                 FROM dates WHERE AttendanceDate < $endDate
             )
             INSERT OR IGNORE INTO AttendanceRecords (
-                SubjectId, AttendanceDate, Status, ScheduledStart, ScheduledEnd,
+                SubjectId, ClassType, AttendanceDate, Status, ScheduledStart, ScheduledEnd,
                 ScheduledDurationMinutes, ActualDurationMinutes
             )
-            SELECT ws.SubjectId, dates.AttendanceDate, 'Not Marked', ws.StartTime, ws.EndTime,
+            SELECT ws.SubjectId, ws.ClassType, dates.AttendanceDate, 'Not Marked', ws.StartTime, ws.EndTime,
                    (CAST(substr(ws.EndTime, 1, 2) AS INTEGER) * 60 + CAST(substr(ws.EndTime, 4, 2) AS INTEGER))
                    - (CAST(substr(ws.StartTime, 1, 2) AS INTEGER) * 60 + CAST(substr(ws.StartTime, 4, 2) AS INTEGER)),
                    NULL
@@ -79,18 +87,21 @@ public sealed class AttendanceRepository
         if (allowUnmarked)
         {
             command.CommandText = """
-                SELECT a.SubjectId, s.Name, a.AttendanceDate, a.ScheduledStart, a.ScheduledEnd,
-                       a.ScheduledDurationMinutes, a.Status, a.ActualDurationMinutes, 1, a.Id, a.IsManual
+                SELECT a.SubjectId, s.Name, a.ClassType, a.AttendanceDate, a.ScheduledStart, a.ScheduledEnd,
+                       a.ScheduledDurationMinutes, a.Status, a.ActualDurationMinutes, 1, a.Id, a.IsManual,
+                       ct.Venue, ct.Professor
                 FROM AttendanceRecords a
                 JOIN Subjects s ON s.Id = a.SubjectId
+                JOIN SubjectClassTypes ct ON ct.SubjectId = a.SubjectId AND ct.Type = a.ClassType
                 WHERE a.AttendanceDate = $date
                 UNION ALL
-                SELECT ws.SubjectId, s.Name, $date, ws.StartTime, ws.EndTime,
+                SELECT ws.SubjectId, s.Name, ws.ClassType, $date, ws.StartTime, ws.EndTime,
                        (CAST(substr(ws.EndTime, 1, 2) AS INTEGER) * 60 + CAST(substr(ws.EndTime, 4, 2) AS INTEGER))
                        - (CAST(substr(ws.StartTime, 1, 2) AS INTEGER) * 60 + CAST(substr(ws.StartTime, 4, 2) AS INTEGER)),
-                       NULL, NULL, 0, 0, 0
+                       NULL, NULL, 0, 0, 0, ct.Venue, ct.Professor
                 FROM WeeklySessions ws
                 JOIN Subjects s ON s.Id = ws.SubjectId
+                JOIN SubjectClassTypes ct ON ct.SubjectId = ws.SubjectId AND ct.Type = ws.ClassType
                 WHERE ws.DayOfWeek = $dayOfWeek
                   AND ws.EffectiveFrom <= $date
                   AND (ws.EffectiveTo IS NULL OR ws.EffectiveTo > $date)
@@ -98,26 +109,27 @@ public sealed class AttendanceRepository
                   AND NOT EXISTS (
                       SELECT 1 FROM AttendanceRecords a
                       WHERE a.SubjectId = ws.SubjectId AND a.AttendanceDate = $date
-                        AND a.ScheduledStart = ws.StartTime AND a.IsManual = 0
+                        AND a.ClassType = ws.ClassType AND a.ScheduledStart = ws.StartTime AND a.IsManual = 0
                   )
-                ORDER BY 4, 2;
+                ORDER BY 5, 2, 3;
                 """;
             command.Parameters.AddWithValue("$dayOfWeek", (int)date.DayOfWeek);
         }
         else
         {
             command.CommandText = """
-                SELECT ws.SubjectId, s.Name, $date, ws.StartTime, ws.EndTime,
+                SELECT ws.SubjectId, s.Name, ws.ClassType, $date, ws.StartTime, ws.EndTime,
                        (CAST(substr(ws.EndTime, 1, 2) AS INTEGER) * 60 + CAST(substr(ws.EndTime, 4, 2) AS INTEGER))
                        - (CAST(substr(ws.StartTime, 1, 2) AS INTEGER) * 60 + CAST(substr(ws.StartTime, 4, 2) AS INTEGER)),
-                       NULL, NULL, 0, 0, 0
+                       NULL, NULL, 0, 0, 0, ct.Venue, ct.Professor
                 FROM WeeklySessions ws
                 JOIN Subjects s ON s.Id = ws.SubjectId
+                JOIN SubjectClassTypes ct ON ct.SubjectId = ws.SubjectId AND ct.Type = ws.ClassType
                 WHERE ws.DayOfWeek = $dayOfWeek
                   AND ws.EffectiveFrom <= $date
                   AND (ws.EffectiveTo IS NULL OR ws.EffectiveTo > $date)
                   AND (s.IsArchived = 0 OR (s.ArchivedOn IS NOT NULL AND s.ArchivedOn > $date))
-                ORDER BY ws.StartTime, s.Name COLLATE NOCASE;
+                ORDER BY ws.StartTime, s.Name COLLATE NOCASE, ws.ClassType;
                 """;
             command.Parameters.AddWithValue("$dayOfWeek", (int)date.DayOfWeek);
         }
@@ -128,14 +140,15 @@ public sealed class AttendanceRepository
         while (reader.Read())
         {
             entries.Add(new AttendanceEntry(
-                reader.GetInt64(0), reader.GetString(1), date,
-                reader.IsDBNull(3) ? null : reader.GetString(3),
+                reader.GetInt64(0), reader.GetString(1), Enum.Parse<SubjectType>(reader.GetString(2)), date,
                 reader.IsDBNull(4) ? null : reader.GetString(4),
-                reader.GetInt32(5),
-                reader.IsDBNull(6) ? null : ParseStatus(reader.GetString(6)),
-                reader.IsDBNull(7) ? null : reader.GetInt32(7),
-                reader.GetInt64(8) == 1,
-                reader.GetInt64(9), reader.GetInt64(10) == 1));
+                reader.IsDBNull(5) ? null : reader.GetString(5),
+                reader.GetInt32(6),
+                reader.IsDBNull(7) ? null : ParseStatus(reader.GetString(7)),
+                reader.IsDBNull(8) ? null : reader.GetInt32(8),
+                reader.GetInt64(9) == 1,
+                reader.GetInt64(10), reader.GetInt64(11) == 1,
+                reader.GetString(12), reader.GetString(13)));
         }
         return entries;
     }
@@ -147,10 +160,12 @@ public sealed class AttendanceRepository
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT a.SubjectId, s.Name, a.AttendanceDate, a.ScheduledStart, a.ScheduledEnd,
-                   a.ScheduledDurationMinutes, a.Status, a.ActualDurationMinutes, 1, a.Id, a.IsManual
+            SELECT a.SubjectId, s.Name, a.ClassType, a.AttendanceDate, a.ScheduledStart, a.ScheduledEnd,
+                   a.ScheduledDurationMinutes, a.Status, a.ActualDurationMinutes, 1, a.Id, a.IsManual,
+                   ct.Venue, ct.Professor
             FROM AttendanceRecords a
             JOIN Subjects s ON s.Id = a.SubjectId
+            JOIN SubjectClassTypes ct ON ct.SubjectId = a.SubjectId AND ct.Type = a.ClassType
             WHERE a.Status = 'Not Marked' AND a.AttendanceDate <= $throughDate
             ORDER BY a.AttendanceDate DESC, a.ScheduledStart, s.Name COLLATE NOCASE;
             """;
@@ -161,12 +176,14 @@ public sealed class AttendanceRepository
         while (reader.Read())
         {
             entries.Add(new AttendanceEntry(
-                reader.GetInt64(0), reader.GetString(1), DateOnly.ParseExact(reader.GetString(2), "yyyy-MM-dd", CultureInfo.InvariantCulture),
-                reader.IsDBNull(3) ? null : reader.GetString(3),
+                reader.GetInt64(0), reader.GetString(1), Enum.Parse<SubjectType>(reader.GetString(2)),
+                DateOnly.ParseExact(reader.GetString(3), "yyyy-MM-dd", CultureInfo.InvariantCulture),
                 reader.IsDBNull(4) ? null : reader.GetString(4),
-                reader.GetInt32(5), ParseStatus(reader.GetString(6)),
-                reader.IsDBNull(7) ? null : reader.GetInt32(7), true,
-                reader.GetInt64(9), reader.GetInt64(10) == 1));
+                reader.IsDBNull(5) ? null : reader.GetString(5),
+                reader.GetInt32(6), ParseStatus(reader.GetString(7)),
+                reader.IsDBNull(8) ? null : reader.GetInt32(8), true,
+                reader.GetInt64(10), reader.GetInt64(11) == 1,
+                reader.GetString(12), reader.GetString(13)));
         }
         return entries;
     }
@@ -174,6 +191,7 @@ public sealed class AttendanceRepository
     {
         using var connection = new SqliteConnection(_connectionString);
         connection.Open();
+        EnsureEnabledType(connection, entry.SubjectId, entry.Type);
         using var command = connection.CreateCommand();
 
         // A hand-entered record has no start time, so the "same class" rule below cannot find it.
@@ -194,11 +212,11 @@ public sealed class AttendanceRepository
 
         command.CommandText = """
             INSERT INTO AttendanceRecords (
-                SubjectId, AttendanceDate, Status, ScheduledStart, ScheduledEnd,
+                SubjectId, ClassType, AttendanceDate, Status, ScheduledStart, ScheduledEnd,
                 ScheduledDurationMinutes, ActualDurationMinutes
             )
-            VALUES ($subjectId, $date, $status, $start, $end, $scheduledMinutes, $actualMinutes)
-            ON CONFLICT (SubjectId, AttendanceDate, ScheduledStart) DO UPDATE SET
+            VALUES ($subjectId, $classType, $date, $status, $start, $end, $scheduledMinutes, $actualMinutes)
+            ON CONFLICT (SubjectId, ClassType, AttendanceDate, ScheduledStart) DO UPDATE SET
                 Status = excluded.Status,
                 ScheduledStart = excluded.ScheduledStart,
                 ScheduledEnd = excluded.ScheduledEnd,
@@ -206,6 +224,7 @@ public sealed class AttendanceRepository
                 ActualDurationMinutes = excluded.ActualDurationMinutes;
             """;
         command.Parameters.AddWithValue("$subjectId", entry.SubjectId);
+        command.Parameters.AddWithValue("$classType", entry.Type.ToString());
         command.Parameters.AddWithValue("$date", FormatDate(entry.AttendanceDate));
         command.Parameters.AddWithValue("$status", FormatStatus(status));
         command.Parameters.AddWithValue("$start", (object?)entry.ScheduledStart ?? DBNull.Value);
@@ -219,7 +238,8 @@ public sealed class AttendanceRepository
     // Adds attendance the person typed in by hand: any date (past, today or future) for an existing
     // subject, with the number of minutes they chose. It has no start or end time and is not linked to
     // the timetable. The same subject can have several of these on one day.
-    public void AddManualEntry(long subjectId, DateOnly date, AttendanceStatus status, int durationMinutes)
+    public void AddManualEntry(long subjectId, SubjectType type, DateOnly date,
+        AttendanceStatus status, int durationMinutes)
     {
         if (durationMinutes <= 0)
             throw new ArgumentException("The duration must be more than zero.");
@@ -228,15 +248,17 @@ public sealed class AttendanceRepository
 
         using var connection = new SqliteConnection(_connectionString);
         connection.Open();
+        EnsureEnabledType(connection, subjectId, type);
         using var command = connection.CreateCommand();
         command.CommandText = """
             INSERT INTO AttendanceRecords (
-                SubjectId, AttendanceDate, Status, ScheduledStart, ScheduledEnd,
+                SubjectId, ClassType, AttendanceDate, Status, ScheduledStart, ScheduledEnd,
                 ScheduledDurationMinutes, ActualDurationMinutes, IsManual
             )
-            VALUES ($subjectId, $date, $status, NULL, NULL, $minutes, NULL, 1);
+            VALUES ($subjectId, $classType, $date, $status, NULL, NULL, $minutes, NULL, 1);
             """;
         command.Parameters.AddWithValue("$subjectId", subjectId);
+        command.Parameters.AddWithValue("$classType", type.ToString());
         command.Parameters.AddWithValue("$date", FormatDate(date));
         command.Parameters.AddWithValue("$status", FormatStatus(status));
         command.Parameters.AddWithValue("$minutes", durationMinutes);
@@ -285,7 +307,7 @@ public sealed class AttendanceRepository
 
     // Deletes Not Marked records dated on or after this day whose class is no longer in the timetable
     // (same subject, weekday, start and end time). Marked records are never deleted.
-    public int DeleteStaleUnmarkedFrom(DateOnly fromDate)
+    public int DeleteStaleUnmarkedFrom(DateOnly fromDate, DateOnly? untilExclusive = null)
     {
         using var connection = new SqliteConnection(_connectionString);
         connection.Open();
@@ -295,9 +317,11 @@ public sealed class AttendanceRepository
             WHERE Status = 'Not Marked'
               AND IsManual = 0
               AND AttendanceDate >= $fromDate
+              AND ($untilExclusive IS NULL OR AttendanceDate < $untilExclusive)
               AND NOT EXISTS (
                   SELECT 1 FROM WeeklySessions ws
                   WHERE ws.SubjectId = AttendanceRecords.SubjectId
+                    AND ws.ClassType = AttendanceRecords.ClassType
                     AND ws.DayOfWeek = CAST(strftime('%w', AttendanceRecords.AttendanceDate) AS INTEGER)
                     AND ws.StartTime = AttendanceRecords.ScheduledStart
                     AND ws.EndTime = AttendanceRecords.ScheduledEnd
@@ -306,10 +330,25 @@ public sealed class AttendanceRepository
               );
             """;
         command.Parameters.AddWithValue("$fromDate", FormatDate(fromDate));
+        command.Parameters.AddWithValue("$untilExclusive",
+            untilExclusive is null ? DBNull.Value : FormatDate(untilExclusive.Value));
         return command.ExecuteNonQuery();
     }
 
     private static string FormatDate(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    private static void EnsureEnabledType(SqliteConnection connection, long subjectId, SubjectType type)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT 1 FROM SubjectClassTypes
+            WHERE SubjectId = $subjectId AND Type = $type;
+            """;
+        command.Parameters.AddWithValue("$subjectId", subjectId);
+        command.Parameters.AddWithValue("$type", type.ToString());
+        if (command.ExecuteScalar() is null)
+            throw new InvalidOperationException($"{type} is not enabled for this subject.");
+    }
 
     private static string FormatStatus(AttendanceStatus status) => status switch
     {

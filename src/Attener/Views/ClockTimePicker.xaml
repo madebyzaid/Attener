@@ -8,7 +8,7 @@
                 BorderThickness="1" CornerRadius="10">
             <Border.Style>
                 <Style TargetType="Border">
-                    <Setter Property="BorderBrush" Value="#454B58" />
+                    <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
                     <Style.Triggers>
                         <Trigger Property="IsKeyboardFocusWithin" Value="True">
                             <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
@@ -22,6 +22,7 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <TextBox x:Name="TimeBox" BorderThickness="0" Background="Transparent" Padding="10,0"
+                         FontFamily="{StaticResource MonoFontFamily}"
                          VerticalContentAlignment="Center" TextAlignment="Center"
                          ToolTip="Type a time such as 8 or 08:00, or use the clock"
                          KeyDown="TimeBox_KeyDown" LostFocus="TimeBox_LostFocus" />
@@ -36,21 +37,24 @@
         <!-- The dial. Its contents are drawn in code (ClockTimePicker.xaml.cs). -->
         <Popup x:Name="DialPopup" PlacementTarget="{Binding ElementName=FieldBorder}" Placement="Bottom"
                VerticalOffset="4" StaysOpen="False" AllowsTransparency="True">
-            <Border Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="#454B58"
-                    BorderThickness="1" CornerRadius="16" Padding="18">
+            <Border Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1" CornerRadius="10" Padding="16">
                 <StackPanel Width="260">
                     <TextBlock Text="Select time" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" />
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,12,0,16">
-                        <Border x:Name="HourChip" Width="84" Height="60" CornerRadius="10" Cursor="Hand"
+                        <Border x:Name="HourChip" Width="84" Height="60" CornerRadius="7" Cursor="Hand"
                                 MouseLeftButtonDown="HourChip_MouseDown">
                             <TextBlock x:Name="HourChipText" Text="08" FontSize="34"
+                                       FontFamily="{StaticResource MonoFontFamily}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
-                        <TextBlock Text=":" FontSize="34" Margin="8,0" VerticalAlignment="Center" />
-                        <Border x:Name="MinuteChip" Width="84" Height="60" CornerRadius="10" Cursor="Hand"
+                        <TextBlock Text=":" FontSize="34" Margin="8,0" VerticalAlignment="Center"
+                                   FontFamily="{StaticResource MonoFontFamily}" />
+                        <Border x:Name="MinuteChip" Width="84" Height="60" CornerRadius="7" Cursor="Hand"
                                 MouseLeftButtonDown="MinuteChip_MouseDown">
                             <TextBlock x:Name="MinuteChipText" Text="00" FontSize="34"
+                                       FontFamily="{StaticResource MonoFontFamily}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                     </StackPanel>
@@ -61,10 +65,10 @@
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
                         <Button Content="Cancel" Padding="14,7" Margin="0,0,8,0" BorderThickness="0"
-                                Background="#292E39" Foreground="{StaticResource SecondaryTextBrush}"
+                                Background="{StaticResource HoverBrush}" Foreground="{StaticResource SecondaryTextBrush}"
                                 Cursor="Hand" Click="Cancel_Click" />
                         <Button Content="OK" Padding="20,7" BorderThickness="0" FontWeight="SemiBold"
-                                Background="{StaticResource AccentBrush}" Foreground="#111318"
+                                Background="{StaticResource AccentBrush}" Foreground="{StaticResource PrimaryTextBrush}"
                                 Cursor="Hand" Click="Ok_Click" />
                     </StackPanel>
                 </StackPanel>

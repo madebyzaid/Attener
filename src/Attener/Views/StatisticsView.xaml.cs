@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using Attener.Features.Attendance;
 using Attener.Features.Settings;
 using Attener.Features.Statistics;
@@ -13,7 +14,6 @@ public partial class StatisticsView : UserControl
     private readonly AttendanceTargetRepository _target = new(DatabaseLocation.GetPath());
     private readonly SemesterSettingsRepository _settings = new(DatabaseLocation.GetPath());
     private readonly StatisticsRepository _statistics = new(DatabaseLocation.GetPath());
-
     public StatisticsView()
     {
         InitializeComponent();
@@ -22,6 +22,12 @@ public partial class StatisticsView : UserControl
 
     public void RefreshData()
     {
+        PageHeading.Text = "Statistics";
+        BackButton.Visibility = Visibility.Collapsed;
+        SubjectStatsList.Visibility = Visibility.Visible;
+        ClassTypeStatsList.Visibility = Visibility.Collapsed;
+        ClassTypeStatsList.ItemsSource = Array.Empty<SubjectStatRow>();
+
         var semesterStart = _settings.GetSemesterStartDate();
         if (semesterStart is null)
         {
@@ -34,42 +40,77 @@ public partial class StatisticsView : UserControl
 
         var today = DateOnly.FromDateTime(DateTime.Today);
         DateRangeText.Text = $"{semesterStart:dd MMM yyyy} to {today:dd MMM yyyy}";
-        var summaries = _statistics.GetSubjectSummaries(semesterStart.Value, today);
-
         var target = _target.GetTarget();
-        var rows = summaries.Select(summary =>
-        {
-            var percentage = summary.CountedMinutes == 0
-                ? 0m
-                : summary.AttendedMinutes * 100m / summary.CountedMinutes;
-            var subjectName = summary.IsArchived ? $"{summary.SubjectName} · Archived" : summary.SubjectName;
-            return new SubjectStatRow(BuildTargetNote(summary, target), PickTargetBrush(summary, target),
-                new GridLength(target, GridUnitType.Star), new GridLength(100 - target, GridUnitType.Star),
-                subjectName,
-                $"{FormatHours(summary.AttendedMinutes)} attended of {FormatHours(summary.CountedMinutes)} counted",
-                $"{percentage:0.0}%", (double)percentage);
-        }).ToArray();
+        var rows = _statistics.GetSubjectSummaries(semesterStart.Value, today)
+            .Select(summary => CreateRow(summary.SubjectId,
+                summary.IsArchived ? $"{summary.SubjectName} · Archived" : summary.SubjectName,
+                "", "", null, summary.AttendedMinutes,
+                summary.CountedMinutes, target, isClickable: true))
+            .ToArray();
 
         SubjectStatsList.ItemsSource = rows;
         EmptyStateText.Text = "No attendance hours have been marked yet.";
         EmptyStateText.Visibility = rows.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    private void SubjectStat_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not Border { DataContext: SubjectStatRow { IsClickable: true } row })
+            return;
+
+        var semesterStart = _settings.GetSemesterStartDate();
+        if (semesterStart is null)
+            return;
+
+        PageHeading.Text = row.SubjectName;
+        BackButton.Visibility = Visibility.Visible;
+        SubjectStatsList.Visibility = Visibility.Collapsed;
+        ClassTypeStatsList.Visibility = Visibility.Visible;
+
+        var target = _target.GetTarget();
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var typeRows = _statistics.GetClassTypeSummaries(row.SubjectId, semesterStart.Value, today)
+            .Select(summary => CreateRow(row.SubjectId, row.SubjectName, summary.Venue, summary.Professor,
+                summary.Type.ToString(), summary.AttendedMinutes, summary.CountedMinutes, target,
+                isClickable: false))
+            .ToArray();
+
+        ClassTypeStatsList.ItemsSource = typeRows;
+        EmptyStateText.Text = "No enabled class types.";
+        EmptyStateText.Visibility = typeRows.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void BackToSubjects_Click(object sender, RoutedEventArgs e)
+    {
+        PageHeading.Text = "Statistics";
+        BackButton.Visibility = Visibility.Collapsed;
+        SubjectStatsList.Visibility = Visibility.Visible;
+        ClassTypeStatsList.Visibility = Visibility.Collapsed;
+        EmptyStateText.Visibility = SubjectStatsList.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private SubjectStatRow CreateRow(long subjectId, string subjectName, string venue, string professor,
+        string? typeName, int attendedMinutes, int countedMinutes, int target, bool isClickable)
+    {
+        var percentage = countedMinutes == 0 ? 0m : attendedMinutes * 100m / countedMinutes;
+        return new SubjectStatRow(subjectId, subjectName, typeName, venue, professor,
+            !string.IsNullOrWhiteSpace(professor), !string.IsNullOrWhiteSpace(venue),
+            BuildTargetNote(attendedMinutes, countedMinutes, target), PickTargetBrush(attendedMinutes, countedMinutes, target),
+            new GridLength(target, GridUnitType.Star), new GridLength(100 - target, GridUnitType.Star),
+            $"{FormatHours(attendedMinutes)} attended of {FormatHours(countedMinutes)} counted",
+            $"{percentage:0.0}%", (double)percentage, isClickable);
+    }
+
     private static string FormatHours(int minutes) =>
         $"{(minutes / 60m).ToString("0.##", CultureInfo.InvariantCulture)} h";
-
-    private static readonly System.Windows.Media.Brush OnTrackBrush =
-        new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x5B, 0xD6, 0x8A));
-    private static readonly System.Windows.Media.Brush ShortageBrush =
-        new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xF2, 0x6D, 0x78));
 
     // Whole-minute maths, so there is no rounding drift:
     //   at/above target: hours you can still miss = floor(attended / target - counted)
     //   below target:    hours to attend in a row = ceil((target * counted - attended) / (1 - target))
-    private static string BuildTargetNote(SubjectAttendanceSummary summary, int target)
+    private static string BuildTargetNote(int attendedMinutes, int countedMinutes, int target)
     {
-        long attended = summary.AttendedMinutes;
-        long counted = summary.CountedMinutes;
+        long attended = attendedMinutes;
+        long counted = countedMinutes;
         if (counted == 0)
             return "";
 
@@ -85,13 +126,29 @@ public partial class StatisticsView : UserControl
         return $"Attend the next {FormatHours((int)needed)} to reach {target}%";
     }
 
-    private static System.Windows.Media.Brush PickTargetBrush(SubjectAttendanceSummary summary, int target) =>
-        summary.CountedMinutes == 0 || summary.AttendedMinutes * 100L >= target * (long)summary.CountedMinutes
-            ? OnTrackBrush
-            : ShortageBrush;
+    private System.Windows.Media.Brush PickTargetBrush(int attendedMinutes, int countedMinutes, int target) =>
+        countedMinutes == 0 || attendedMinutes * 100L >= target * (long)countedMinutes
+            ? (System.Windows.Media.Brush)FindResource("SuccessBrush")
+            : (System.Windows.Media.Brush)FindResource("DangerBrush");
 
     private sealed record SubjectStatRow(
-        string TargetNote, System.Windows.Media.Brush TargetBrush, GridLength TargetLeft, GridLength TargetRight,
-        string SubjectName, string HoursSummary, string PercentageText, double PercentageValue);
+        long SubjectId,
+        string SubjectName,
+        string? TypeName,
+        string Venue,
+        string Professor,
+        bool HasProfessor,
+        bool HasVenue,
+        string TargetNote,
+        System.Windows.Media.Brush TargetBrush,
+        GridLength TargetLeft,
+        GridLength TargetRight,
+        string HoursSummary,
+        string PercentageText,
+        double PercentageValue,
+        bool IsClickable)
+    {
+        public Visibility TypeVisibility => TypeName is null ? Visibility.Collapsed : Visibility.Visible;
+        public Cursor Cursor => IsClickable ? Cursors.Hand : Cursors.Arrow;
+    }
 }
-

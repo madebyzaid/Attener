@@ -18,9 +18,9 @@ public partial class ClockTimePicker : UserControl
     private const double InnerRadius = 68;
     private const double BubbleSize = 34;
 
-    private static readonly Brush DarkText = new SolidColorBrush(Color.FromRgb(0x11, 0x13, 0x18));
-    private static readonly Brush DialFace = new SolidColorBrush(Color.FromRgb(0x29, 0x2E, 0x39));
-    private static readonly Brush InactiveChip = new SolidColorBrush(Color.FromRgb(0x2B, 0x30, 0x3B));
+    private static readonly Brush SelectedText = new SolidColorBrush(Color.FromRgb(0xE6, 0xE9, 0xEC));
+    private static readonly Brush DialFace = new SolidColorBrush(Color.FromRgb(0x20, 0x23, 0x25));
+    private static readonly Brush InactiveChip = new SolidColorBrush(Color.FromRgb(0x25, 0x2A, 0x2D));
 
     private TimeOnly _time = new(8, 0);
     private int _hour;
@@ -190,9 +190,9 @@ public partial class ClockTimePicker : UserControl
         HourChipText.Text = _hour.ToString("00");
         MinuteChipText.Text = _minute.ToString("00");
         HourChip.Background = _pickingMinutes ? InactiveChip : accent;
-        HourChipText.Foreground = _pickingMinutes ? primary : DarkText;
+        HourChipText.Foreground = _pickingMinutes ? primary : SelectedText;
         MinuteChip.Background = _pickingMinutes ? accent : InactiveChip;
-        MinuteChipText.Foreground = _pickingMinutes ? DarkText : primary;
+        MinuteChipText.Foreground = _pickingMinutes ? SelectedText : primary;
         MinuteChip.Opacity = ShowMinutes ? 1 : 0.4;
     }
 
@@ -220,7 +220,7 @@ public partial class ClockTimePicker : UserControl
                 if (minute != _minute)
                     AddLabel(minute.ToString("00"), MinutePoint(minute), primary);
             }
-            AddLabel(_minute.ToString("00"), selected, DarkText);
+            AddLabel(_minute.ToString("00"), selected, SelectedText);
         }
         else
         {
@@ -229,7 +229,7 @@ public partial class ClockTimePicker : UserControl
                 if (hour != _hour)
                     AddLabel(hour.ToString(), HourPoint(hour), primary);
             }
-            AddLabel(_hour.ToString(), selected, DarkText);
+            AddLabel(_hour.ToString(), selected, SelectedText);
         }
     }
 
@@ -249,6 +249,7 @@ public partial class ClockTimePicker : UserControl
             Text = text,
             Foreground = foreground,
             FontSize = 14,
+            FontFamily = (FontFamily)FindResource("MonoFontFamily"),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         });

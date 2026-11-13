@@ -5,7 +5,7 @@ namespace Attener.Infrastructure.Database;
 
 public sealed class DatabaseInitializer
 {
-    private const int SchemaVersion = 5;
+    private const int SchemaVersion = 9;
     private readonly string _databasePath;
 
     public DatabaseInitializer(string databasePath)
@@ -36,14 +36,26 @@ public sealed class DatabaseInitializer
                 CREATE TABLE IF NOT EXISTS Subjects (
                     Id              INTEGER PRIMARY KEY AUTOINCREMENT,
                     Name            TEXT NOT NULL COLLATE NOCASE UNIQUE,
+                    Venue           TEXT NOT NULL DEFAULT '',
+                    Professor       TEXT NOT NULL DEFAULT '',
+                    ClassType       TEXT NOT NULL DEFAULT 'Lecture' CHECK (ClassType IN ('Lecture', 'Tutorial', 'Practical')),
                     IsArchived      INTEGER NOT NULL DEFAULT 0 CHECK (IsArchived IN (0, 1)),
                     ArchivedOn      TEXT,
                     CreatedAtUtc    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
                 );
 
+                CREATE TABLE IF NOT EXISTS SubjectClassTypes (
+                    SubjectId   INTEGER NOT NULL REFERENCES Subjects(Id) ON DELETE CASCADE,
+                    Type        TEXT NOT NULL CHECK (Type IN ('Lecture', 'Tutorial', 'Practical')),
+                    Professor   TEXT NOT NULL DEFAULT '',
+                    Venue       TEXT NOT NULL DEFAULT '',
+                    PRIMARY KEY (SubjectId, Type)
+                );
+
                 CREATE TABLE IF NOT EXISTS WeeklySessions (
                     Id              INTEGER PRIMARY KEY AUTOINCREMENT,
                     SubjectId       INTEGER NOT NULL REFERENCES Subjects(Id),
+                    ClassType       TEXT NOT NULL DEFAULT 'Lecture' CHECK (ClassType IN ('Lecture', 'Tutorial', 'Practical')),
                     DayOfWeek       INTEGER NOT NULL CHECK (DayOfWeek BETWEEN 0 AND 6),
                     StartTime       TEXT NOT NULL,
                     EndTime         TEXT NOT NULL,
@@ -60,6 +72,7 @@ public sealed class DatabaseInitializer
                 CREATE TABLE IF NOT EXISTS AttendanceRecords (
                     Id                      INTEGER PRIMARY KEY AUTOINCREMENT,
                     SubjectId               INTEGER NOT NULL REFERENCES Subjects(Id),
+                    ClassType               TEXT NOT NULL DEFAULT 'Lecture' CHECK (ClassType IN ('Lecture', 'Tutorial', 'Practical')),
                     AttendanceDate          TEXT NOT NULL,
                     Status                  TEXT NOT NULL CHECK (Status IN (
                                                 'Present', 'Absent', 'Cancelled', 'Not Marked', 'No Class'
@@ -70,7 +83,7 @@ public sealed class DatabaseInitializer
                     ActualDurationMinutes   INTEGER CHECK (
                                                 ActualDurationMinutes IS NULL OR ActualDurationMinutes >= 0
                                             ),
-                    UNIQUE (SubjectId, AttendanceDate, ScheduledStart),
+                    UNIQUE (SubjectId, ClassType, AttendanceDate, ScheduledStart),
                     CHECK (ScheduledEnd IS NULL OR ScheduledStart IS NOT NULL)
                 );
 
@@ -87,6 +100,9 @@ public sealed class DatabaseInitializer
 
         // Older databases were created before these columns existed.
         EnsureColumn(connection, "Subjects", "ArchivedOn", "TEXT");
+        EnsureColumn(connection, "Subjects", "Venue", "TEXT NOT NULL DEFAULT ''");
+        EnsureColumn(connection, "Subjects", "Professor", "TEXT NOT NULL DEFAULT ''");
+        EnsureColumn(connection, "Subjects", "ClassType", "TEXT NOT NULL DEFAULT 'Lecture' CHECK (ClassType IN ('Lecture', 'Tutorial', 'Practical'))");
         EnsureColumn(connection, "WeeklySessions", "EndedByEndDate", "INTEGER NOT NULL DEFAULT 0");
 
         MigrateAttendanceUniqueness(connection);
@@ -96,6 +112,13 @@ public sealed class DatabaseInitializer
         // told apart, edited and deleted. This comes after the table rebuild above on purpose,
         // because the rebuild would drop the column.
         EnsureColumn(connection, "AttendanceRecords", "IsManual", "INTEGER NOT NULL DEFAULT 0");
+        EnsureColumn(connection, "WeeklySessions", "ClassType", "TEXT NOT NULL DEFAULT 'Lecture' CHECK (ClassType IN ('Lecture', 'Tutorial', 'Practical'))");
+        EnsureColumn(connection, "AttendanceRecords", "ClassType", "TEXT NOT NULL DEFAULT 'Lecture' CHECK (ClassType IN ('Lecture', 'Tutorial', 'Practical'))");
+        MigrateAttendanceClassTypeUniqueness(connection);
+        MigrateSubjectClassTypes(connection);
+        EnsureColumn(connection, "SubjectClassTypes", "Professor", "TEXT NOT NULL DEFAULT ''");
+        EnsureColumn(connection, "SubjectClassTypes", "Venue", "TEXT NOT NULL DEFAULT ''");
+        MigrateSubjectClassDetails(connection);
 
         using var versionCommand = connection.CreateCommand();
         versionCommand.CommandText = $"PRAGMA user_version = {SchemaVersion};";
@@ -150,6 +173,93 @@ public sealed class DatabaseInitializer
             """;
         command.ExecuteNonQuery();
         transaction.Commit();
+    }
+
+    private static void MigrateAttendanceClassTypeUniqueness(SqliteConnection connection)
+    {
+        using var versionCommand = connection.CreateCommand();
+        versionCommand.CommandText = "PRAGMA user_version;";
+        if (Convert.ToInt32(versionCommand.ExecuteScalar()) >= 8)
+            return;
+
+        using var transaction = connection.BeginTransaction();
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            CREATE TABLE AttendanceRecords_New (
+                Id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+                SubjectId               INTEGER NOT NULL REFERENCES Subjects(Id),
+                ClassType               TEXT NOT NULL DEFAULT 'Lecture' CHECK (ClassType IN ('Lecture', 'Tutorial', 'Practical')),
+                AttendanceDate          TEXT NOT NULL,
+                Status                  TEXT NOT NULL CHECK (Status IN (
+                                            'Present', 'Absent', 'Cancelled', 'Not Marked', 'No Class'
+                                        )),
+                ScheduledStart          TEXT,
+                ScheduledEnd            TEXT,
+                ScheduledDurationMinutes INTEGER NOT NULL DEFAULT 0 CHECK (ScheduledDurationMinutes >= 0),
+                ActualDurationMinutes   INTEGER CHECK (
+                                            ActualDurationMinutes IS NULL OR ActualDurationMinutes >= 0
+                                        ),
+                IsManual                INTEGER NOT NULL DEFAULT 0,
+                UNIQUE (SubjectId, ClassType, AttendanceDate, ScheduledStart),
+                CHECK (ScheduledEnd IS NULL OR ScheduledStart IS NOT NULL)
+            );
+
+            INSERT INTO AttendanceRecords_New
+                (Id, SubjectId, ClassType, AttendanceDate, Status, ScheduledStart, ScheduledEnd,
+                 ScheduledDurationMinutes, ActualDurationMinutes, IsManual)
+            SELECT Id, SubjectId, ClassType, AttendanceDate, Status, ScheduledStart, ScheduledEnd,
+                   ScheduledDurationMinutes, ActualDurationMinutes, IsManual
+            FROM AttendanceRecords;
+
+            DROP TABLE AttendanceRecords;
+            ALTER TABLE AttendanceRecords_New RENAME TO AttendanceRecords;
+
+            CREATE INDEX IX_AttendanceRecords_Date ON AttendanceRecords (AttendanceDate);
+            """;
+        command.ExecuteNonQuery();
+        transaction.Commit();
+    }
+
+    private static void MigrateSubjectClassTypes(SqliteConnection connection)
+    {
+        using var versionCommand = connection.CreateCommand();
+        versionCommand.CommandText = "PRAGMA user_version;";
+        if (Convert.ToInt32(versionCommand.ExecuteScalar()) >= 8)
+            return;
+
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT OR IGNORE INTO SubjectClassTypes (SubjectId, Type)
+            SELECT Id, ClassType FROM Subjects;
+
+            UPDATE WeeklySessions
+            SET ClassType = (
+                SELECT s.ClassType FROM Subjects s WHERE s.Id = WeeklySessions.SubjectId
+            );
+
+            UPDATE AttendanceRecords
+            SET ClassType = (
+                SELECT s.ClassType FROM Subjects s WHERE s.Id = AttendanceRecords.SubjectId
+            );
+            """;
+        command.ExecuteNonQuery();
+    }
+
+    private static void MigrateSubjectClassDetails(SqliteConnection connection)
+    {
+        using var versionCommand = connection.CreateCommand();
+        versionCommand.CommandText = "PRAGMA user_version;";
+        if (Convert.ToInt32(versionCommand.ExecuteScalar()) >= 9)
+            return;
+
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE SubjectClassTypes
+            SET Professor = (SELECT Professor FROM Subjects WHERE Subjects.Id = SubjectClassTypes.SubjectId),
+                Venue = (SELECT Venue FROM Subjects WHERE Subjects.Id = SubjectClassTypes.SubjectId);
+            """;
+        command.ExecuteNonQuery();
     }
 
     // Version 5: the timetable no longer has "effective from" dates or end dates; every edit applies

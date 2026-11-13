@@ -124,9 +124,10 @@ public partial class AttendanceView : UserControl
     public void AddManualForDate(DateTime? initialDate = null, bool lockDate = false)
     {
         var choices = _subjects.GetSubjects(includeArchived: false)
-            .Select(subject => new SubjectChoice(subject.Id, subject.Name))
-            .Concat(_subjects.GetSubjects(includeArchived: true)
-                .Select(subject => new SubjectChoice(subject.Id, $"{subject.Name} · Archived")))
+            .Concat(_subjects.GetSubjects(includeArchived: true))
+            .SelectMany(subject => subject.Types.Select(type => new SubjectChoice(
+                subject.Id, type,
+                $"{subject.Name} · {type}{(subject.IsArchived ? " · Archived" : "")}")))
             .ToList();
         if (choices.Count == 0)
         {
@@ -170,7 +171,7 @@ public partial class AttendanceView : UserControl
             Content = "Save entry",
             Padding = new Thickness(18, 7, 18, 7),
             Background = (Brush)FindResource("AccentBrush"),
-            Foreground = new SolidColorBrush(Color.FromRgb(0x11, 0x13, 0x18)),
+            Foreground = (Brush)FindResource("PrimaryTextBrush"),
             FontWeight = FontWeights.SemiBold,
             BorderThickness = new Thickness(0),
             Cursor = System.Windows.Input.Cursors.Hand
@@ -247,14 +248,15 @@ public partial class AttendanceView : UserControl
         var chosenSubject = (SubjectChoice)subjectBox.SelectedItem;
         var status = (StatusChoice)statusBox.SelectedItem;
         var date = dateBox.SelectedDate!.Value;
-        _attendance.AddManualEntry(chosenSubject.Id, DateOnly.FromDateTime(date), status.Status, minutes);
+        _attendance.AddManualEntry(chosenSubject.Id, chosenSubject.Type,
+            DateOnly.FromDateTime(date), status.Status, minutes);
         LoadAttendance();
     }
 
     private static string FormatHours(int minutes) =>
         $"{(minutes / 60m).ToString("0.##", CultureInfo.InvariantCulture)} h";
 
-    private sealed record SubjectChoice(long Id, string Label) { public override string ToString() => Label; }
+    private sealed record SubjectChoice(long Id, SubjectType Type, string Label) { public override string ToString() => Label; }
     private sealed record StatusChoice(AttendanceStatus Status, string Label) { public override string ToString() => Label; }
 
     // One card on the page: a date, a one-line summary, and that date's class rows.

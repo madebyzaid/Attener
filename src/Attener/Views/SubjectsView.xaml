@@ -12,7 +12,7 @@
                     <ControlTemplate TargetType="TextBox">
                         <Border x:Name="Box" Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="10">
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
                             <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"
                                           Focusable="False" />
                         </Border>
@@ -26,9 +26,43 @@
             </Setter>
         </Style>
 
+        <DataTemplate x:Key="SubjectClassDetailTemplate">
+            <StackPanel Margin="0,5,0,0">
+                <Border Background="{StaticResource HoverBrush}" CornerRadius="5"
+                        Padding="7,3" HorizontalAlignment="Left">
+                    <TextBlock Text="{Binding Type}" FontSize="10" FontWeight="SemiBold"
+                               Foreground="{StaticResource SecondaryTextBrush}" />
+                </Border>
+                <TextBlock Text="{Binding Professor}" FontSize="11"
+                           Foreground="{StaticResource SecondaryTextBrush}" Margin="0,3,0,0">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasProfessor}" Value="False">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <TextBlock Text="{Binding Venue}" FontSize="11"
+                           Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,0">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasVenue}" Value="False">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </StackPanel>
+        </DataTemplate>
+
         <DataTemplate x:Key="SubjectTemplate">
-            <Border Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="#2B303B" BorderThickness="1"
-                    CornerRadius="12" Padding="16,13" Margin="0,0,0,9">
+            <Border Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="9" Padding="14,12" Margin="0,0,0,8">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -36,14 +70,21 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="{Binding Name}" FontSize="15" VerticalAlignment="Center" />
-                    <Button Grid.Column="1" Content="Rename" Tag="{Binding}" Click="RenameSubject_Click"
+                    <StackPanel VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                        <ItemsControl ItemsSource="{Binding ClassDetails}"
+                                      ItemTemplate="{StaticResource SubjectClassDetailTemplate}" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="Edit" Tag="{Binding}" Click="EditSubject_Click"
                             Padding="12,6" Margin="0,0,8,0" Foreground="{StaticResource SecondaryTextBrush}"
-                            Background="#292E39" BorderThickness="0" Cursor="Hand" />
+                            Background="{StaticResource HoverBrush}" BorderThickness="0" Cursor="Hand" />
                     <Button Grid.Column="2" Content="Archive" Tag="{Binding Id}"
                             Click="ArchiveSubject_Click" Padding="12,6" Margin="0,0,8,0"
                             Foreground="{StaticResource SecondaryTextBrush}"
-                            Background="#292E39" BorderThickness="0" Cursor="Hand">
+                            Background="{StaticResource HoverBrush}" BorderThickness="0" Cursor="Hand">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                                 <Setter Property="Visibility" Value="Visible" />
@@ -58,7 +99,7 @@
                     <Button Grid.Column="3" Content="Delete" Tag="{Binding Id}"
                             Click="DeleteSubject_Click" Padding="12,6"
                             Foreground="{StaticResource SecondaryTextBrush}"
-                            Background="#292E39" BorderThickness="0" Cursor="Hand" />
+                            Background="{StaticResource HoverBrush}" BorderThickness="0" Cursor="Hand" />
                 </Grid>
             </Border>
         </DataTemplate>
@@ -73,27 +114,92 @@
         </Grid.RowDefinitions>
 
         <StackPanel>
-            <TextBlock Text="Subjects" FontSize="28" FontWeight="SemiBold" />
+            <TextBlock Text="Subjects" FontSize="22" FontWeight="SemiBold" />
             <TextBlock Text="Manage the subjects in your semester. Archiving keeps their attendance history."
-                       FontSize="14" Foreground="{StaticResource SecondaryTextBrush}"
-                       TextWrapping="Wrap" Margin="0,7,0,0" />
+                       FontSize="12" Foreground="{StaticResource SecondaryTextBrush}"
+                       TextWrapping="Wrap" Margin="0,5,0,0" />
         </StackPanel>
 
-        <Border Grid.Row="1" Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="#2B303B" BorderThickness="1"
-                CornerRadius="16" Padding="16" Margin="0,24,0,0">
+        <Border Grid.Row="1" Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                CornerRadius="9" Padding="14" Margin="0,20,0,0">
             <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="2*" />
+                    <ColumnDefinition Width="3*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBox x:Name="SubjectNameBox"
-                         Height="42" Padding="12,9" FontSize="14" Background="#191C23"
-                         BorderThickness="1" ToolTip="Subject name"
-                         KeyDown="SubjectNameBox_KeyDown" />
-                <Button Grid.Column="1" Content="Add subject" Margin="12,0,0,0" Padding="18,0"
-                        Background="{StaticResource AccentBrush}" Foreground="#111318"
+                <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                    <TextBlock Text="Subject code" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,5" />
+                    <TextBox x:Name="SubjectNameBox" Height="36" Padding="10,7" FontSize="13"
+                             Background="{StaticResource WindowBackgroundBrush}" BorderThickness="1"
+                             ToolTip="Subject code" KeyDown="SubjectNameBox_KeyDown" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                    <TextBlock Text="Class types" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,5" />
+                    <StackPanel Orientation="Horizontal" Height="36" VerticalAlignment="Center">
+                        <CheckBox x:Name="AddLectureCheckBox" Content="Lecture" Margin="0,0,12,0"
+                                  VerticalAlignment="Center" IsChecked="True" />
+                        <CheckBox x:Name="AddTutorialCheckBox" Content="Tutorial" Margin="0,0,12,0"
+                                  VerticalAlignment="Center" />
+                        <CheckBox x:Name="AddPracticalCheckBox" Content="Practical"
+                                  VerticalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+                <Button Grid.Column="2" Content="Add subject" Margin="0,18,0,0" Padding="18,0" Height="36"
+                        Background="{StaticResource AccentBrush}" Foreground="{StaticResource PrimaryTextBrush}"
                         FontWeight="SemiBold" BorderThickness="0" Cursor="Hand"
                         Click="AddSubject_Click" />
+                <WrapPanel Grid.Row="1" Grid.ColumnSpan="3" Margin="0,14,0,0">
+                    <Border x:Name="AddLectureDetailsCard" Width="240"
+                            Background="{StaticResource WindowBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1" CornerRadius="7" Padding="10" Margin="0,0,8,8">
+                        <StackPanel>
+                            <TextBlock Text="Lecture" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6" />
+                            <TextBlock Text="Professor" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
+                            <TextBox x:Name="AddLectureProfessorBox" Height="30" Padding="8,5" FontSize="11"
+                                     Background="{StaticResource SurfaceBackgroundBrush}" BorderThickness="1"
+                                     ToolTip="Lecture professor" KeyDown="SubjectNameBox_KeyDown" />
+                            <TextBlock Text="Venue" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,5,0,0" />
+                            <TextBox x:Name="AddLectureVenueBox" Height="30" Padding="8,5" FontSize="11"
+                                     Background="{StaticResource SurfaceBackgroundBrush}" BorderThickness="1"
+                                     ToolTip="Lecture venue" KeyDown="SubjectNameBox_KeyDown" />
+                        </StackPanel>
+                    </Border>
+                    <Border x:Name="AddTutorialDetailsCard" Width="240"
+                            Background="{StaticResource WindowBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1" CornerRadius="7" Padding="10" Margin="0,0,8,8">
+                        <StackPanel>
+                            <TextBlock Text="Tutorial" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6" />
+                            <TextBlock Text="Professor" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
+                            <TextBox x:Name="AddTutorialProfessorBox" Height="30" Padding="8,5" FontSize="11"
+                                     Background="{StaticResource SurfaceBackgroundBrush}" BorderThickness="1"
+                                     ToolTip="Tutorial professor" KeyDown="SubjectNameBox_KeyDown" />
+                            <TextBlock Text="Venue" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,5,0,0" />
+                            <TextBox x:Name="AddTutorialVenueBox" Height="30" Padding="8,5" FontSize="11"
+                                     Background="{StaticResource SurfaceBackgroundBrush}" BorderThickness="1"
+                                     ToolTip="Tutorial venue" KeyDown="SubjectNameBox_KeyDown" />
+                        </StackPanel>
+                    </Border>
+                    <Border x:Name="AddPracticalDetailsCard" Width="240"
+                            Background="{StaticResource WindowBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1" CornerRadius="7" Padding="10" Margin="0,0,8,8">
+                        <StackPanel>
+                            <TextBlock Text="Practical" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6" />
+                            <TextBlock Text="Professor" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
+                            <TextBox x:Name="AddPracticalProfessorBox" Height="30" Padding="8,5" FontSize="11"
+                                     Background="{StaticResource SurfaceBackgroundBrush}" BorderThickness="1"
+                                     ToolTip="Practical professor" KeyDown="SubjectNameBox_KeyDown" />
+                            <TextBlock Text="Venue" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,5,0,0" />
+                            <TextBox x:Name="AddPracticalVenueBox" Height="30" Padding="8,5" FontSize="11"
+                                     Background="{StaticResource SurfaceBackgroundBrush}" BorderThickness="1"
+                                     ToolTip="Practical venue" KeyDown="SubjectNameBox_KeyDown" />
+                        </StackPanel>
+                    </Border>
+                </WrapPanel>
             </Grid>
         </Border>
 

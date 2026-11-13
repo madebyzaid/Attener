@@ -5,7 +5,7 @@
     <UserControl.Resources>
         <!-- Rounded progress bar: dark track, accent fill (replaces the default white bar). -->
         <Style TargetType="ProgressBar">
-            <Setter Property="Background" Value="#2B303B" />
+            <Setter Property="Background" Value="{StaticResource BorderBrush}" />
             <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Template">
@@ -22,8 +22,9 @@
         </Style>
 
         <DataTemplate x:Key="SubjectStatTemplate">
-            <Border Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="#2B303B" BorderThickness="1"
-                    CornerRadius="12" Padding="16" Margin="0,0,0,9">
+            <Border Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="9" Padding="14" Margin="0,0,0,8"
+                    MouseLeftButtonUp="SubjectStat_Click" Cursor="{Binding Cursor}">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="2*" />
@@ -31,14 +32,48 @@
                         <ColumnDefinition Width="85" />
                     </Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="{Binding SubjectName}" FontSize="14" FontWeight="SemiBold" />
-                        <TextBlock Text="{Binding HoursSummary}" FontSize="12"
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding SubjectName}" FontSize="14" FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
+                            <Border Background="{StaticResource HoverBrush}" CornerRadius="5"
+                                    Padding="7,3" Margin="8,0,0,0" VerticalAlignment="Center"
+                                    Visibility="{Binding TypeVisibility}">
+                                <TextBlock Text="{Binding TypeName}" FontSize="10"
+                                           Foreground="{StaticResource SecondaryTextBrush}" />
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="{Binding Professor}" FontSize="11"
+                                   Foreground="{StaticResource SecondaryTextBrush}" Margin="0,3,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasProfessor}" Value="False">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Text="{Binding Venue}" FontSize="11"
+                                   Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasVenue}" Value="False">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Text="{Binding HoursSummary}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}"
                                    Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,0" />
                         <TextBlock Text="{Binding TargetNote}" FontSize="12" FontWeight="SemiBold"
                                    Foreground="{Binding TargetBrush}" Margin="0,3,0,0" />
                     </StackPanel>
                     <Grid Grid.Column="1" Margin="18,0" VerticalAlignment="Center">
-                        <ProgressBar Value="{Binding PercentageValue}" Maximum="100" Height="8" />
+                        <ProgressBar Value="{Binding PercentageValue}" Maximum="100" Height="8"
+                                     Foreground="{Binding TargetBrush}" />
                         <Grid IsHitTestVisible="False">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="{Binding TargetLeft}" />
@@ -62,13 +97,24 @@
         </Grid.RowDefinitions>
 
         <StackPanel>
-            <TextBlock Text="Statistics" FontSize="28" FontWeight="SemiBold" />
-            <TextBlock x:Name="DateRangeText" Text="Attendance summary" FontSize="14"
-                       Foreground="{StaticResource SecondaryTextBrush}" Margin="0,7,0,0" />
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="PageHeading" Text="Statistics" FontSize="22" FontWeight="SemiBold" />
+                <Button x:Name="BackButton" Grid.Column="1" Content="← All subjects"
+                        Click="BackToSubjects_Click" Padding="12,6" HorizontalAlignment="Right"
+                        Visibility="Collapsed" />
+            </Grid>
+            <TextBlock x:Name="DateRangeText" Text="Attendance summary" FontSize="12"
+                       Foreground="{StaticResource SecondaryTextBrush}" Margin="0,5,0,0" />
         </StackPanel>
 
-        <Grid Grid.Row="1" Margin="0,22,0,0">
+        <Grid Grid.Row="1" Margin="0,18,0,0">
             <ItemsControl x:Name="SubjectStatsList" ItemTemplate="{StaticResource SubjectStatTemplate}" />
+            <ItemsControl x:Name="ClassTypeStatsList" ItemTemplate="{StaticResource SubjectStatTemplate}"
+                          Visibility="Collapsed" />
             <TextBlock x:Name="EmptyStateText" Text="Choose a semester start date in Settings to view statistics."
                        Foreground="{StaticResource SecondaryTextBrush}" FontSize="14"
                        HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,35,0,0"

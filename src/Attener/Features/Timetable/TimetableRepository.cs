@@ -1,4 +1,5 @@
 using System.Globalization;
+using Attener.Features.Subjects;
 using Microsoft.Data.Sqlite;
 
 namespace Attener.Features.Timetable;
@@ -22,10 +23,11 @@ public sealed class TimetableRepository
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT ws.Id, ws.SubjectId, s.Name, ws.DayOfWeek, ws.StartTime, ws.EndTime,
-                   ws.EffectiveFrom, ws.EffectiveTo
+            SELECT ws.Id, ws.SubjectId, s.Name, ws.ClassType, ws.DayOfWeek, ws.StartTime, ws.EndTime,
+                   ws.EffectiveFrom, ws.EffectiveTo, ct.Venue, ct.Professor
             FROM WeeklySessions ws
             JOIN Subjects s ON s.Id = ws.SubjectId
+            JOIN SubjectClassTypes ct ON ct.SubjectId = ws.SubjectId AND ct.Type = ws.ClassType
             WHERE (s.IsArchived = 0 OR s.ArchivedOn > $effectiveOn)
               AND ws.EffectiveFrom <= $effectiveOn
               AND (ws.EffectiveTo IS NULL OR ws.EffectiveTo > $effectiveOn)
@@ -38,9 +40,11 @@ public sealed class TimetableRepository
         while (reader.Read())
         {
             sessions.Add(new WeeklySessionSummary(
-                reader.GetInt64(0), reader.GetInt64(1), reader.GetString(2), reader.GetInt32(3),
-                reader.GetString(4), reader.GetString(5), reader.GetString(6),
-                reader.IsDBNull(7) ? null : reader.GetString(7)));
+                reader.GetInt64(0), reader.GetInt64(1), reader.GetString(2),
+                Enum.Parse<SubjectType>(reader.GetString(3)), reader.GetInt32(4),
+                reader.GetString(5), reader.GetString(6), reader.GetString(7),
+                reader.IsDBNull(8) ? null : reader.GetString(8),
+                reader.GetString(9), reader.GetString(10)));
         }
         return sessions;
     }
@@ -95,7 +99,7 @@ public sealed class TimetableRepository
     {
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT ws.SubjectId, ws.DayOfWeek, ws.StartTime, ws.EndTime
+            SELECT ws.SubjectId, ws.ClassType, ws.DayOfWeek, ws.StartTime, ws.EndTime
             FROM WeeklySessions ws
             JOIN Subjects s ON s.Id = ws.SubjectId
             WHERE (s.IsArchived = 0 OR s.ArchivedOn > $date)
@@ -108,12 +112,13 @@ public sealed class TimetableRepository
         var text = new System.Text.StringBuilder();
         using var reader = command.ExecuteReader();
         while (reader.Read())
-            text.Append(reader.GetInt64(0)).Append('|').Append(reader.GetInt32(1)).Append('|')
-                .Append(reader.GetString(2)).Append('|').Append(reader.GetString(3)).Append(';');
+            text.Append(reader.GetInt64(0)).Append('|').Append(reader.GetString(1)).Append('|')
+                .Append(reader.GetInt32(2)).Append('|').Append(reader.GetString(3)).Append('|')
+                .Append(reader.GetString(4)).Append(';');
         return text.ToString();
     }
 
-    public void SaveWeeklySession(long subjectId, int dayOfWeek, TimeOnly startTime,
+    public void SaveWeeklySession(long subjectId, SubjectType type, int dayOfWeek, TimeOnly startTime,
         TimeOnly endTime, DateOnly effectiveFrom)
     {
         if (dayOfWeek is < 0 or > 6)
@@ -125,6 +130,7 @@ public sealed class TimetableRepository
         using var connection = new SqliteConnection(_connectionString);
         connection.Open();
         using var transaction = connection.BeginTransaction();
+        EnsureEnabledType(connection, transaction, subjectId, type);
 
         long? currentId = null;
         string? currentFrom = null;
@@ -138,13 +144,14 @@ public sealed class TimetableRepository
             current.CommandText = """
                 SELECT Id, EffectiveFrom, EffectiveTo
                 FROM WeeklySessions
-                WHERE SubjectId = $subjectId AND DayOfWeek = $dayOfWeek
+                WHERE SubjectId = $subjectId AND ClassType = $classType AND DayOfWeek = $dayOfWeek
                   AND StartTime = $start
                   AND EffectiveFrom <= $date
                   AND (EffectiveTo IS NULL OR EffectiveTo > $date)
                 LIMIT 1;
                 """;
             current.Parameters.AddWithValue("$subjectId", subjectId);
+            current.Parameters.AddWithValue("$classType", type.ToString());
             current.Parameters.AddWithValue("$dayOfWeek", dayOfWeek);
             current.Parameters.AddWithValue("$start", FormatTime(startTime));
             current.Parameters.AddWithValue("$date", effectiveDate);
@@ -180,16 +187,17 @@ public sealed class TimetableRepository
             }
 
             var nextEffectiveFrom = currentTo ?? FindNextStart(connection, transaction,
-                subjectId, dayOfWeek, effectiveDate);
+                subjectId, type, dayOfWeek, effectiveDate);
 
             using var insert = connection.CreateCommand();
             insert.Transaction = transaction;
             insert.CommandText = """
                 INSERT INTO WeeklySessions
-                    (SubjectId, DayOfWeek, StartTime, EndTime, EffectiveFrom, EffectiveTo, EndedByEndDate)
-                VALUES ($subjectId, $dayOfWeek, $start, $end, $from, $to, 0);
+                    (SubjectId, ClassType, DayOfWeek, StartTime, EndTime, EffectiveFrom, EffectiveTo, EndedByEndDate)
+                VALUES ($subjectId, $classType, $dayOfWeek, $start, $end, $from, $to, 0);
                 """;
             insert.Parameters.AddWithValue("$subjectId", subjectId);
+            insert.Parameters.AddWithValue("$classType", type.ToString());
             insert.Parameters.AddWithValue("$dayOfWeek", dayOfWeek);
             insert.Parameters.AddWithValue("$start", FormatTime(startTime));
             insert.Parameters.AddWithValue("$end", FormatTime(endTime));
@@ -205,7 +213,7 @@ public sealed class TimetableRepository
     // have several classes in one day). Classes that start exactly on effectiveFrom are deleted;
     // classes that started earlier are closed so they stop on effectiveFrom.
     // Returns true if anything changed.
-    public bool RemoveWeeklySession(long subjectId, int dayOfWeek, DateOnly effectiveFrom)
+    public bool RemoveWeeklySession(long subjectId, SubjectType type, int dayOfWeek, DateOnly effectiveFrom)
     {
         var effectiveDate = FormatDate(effectiveFrom);
         using var connection = new SqliteConnection(_connectionString);
@@ -216,10 +224,11 @@ public sealed class TimetableRepository
         delete.Transaction = transaction;
         delete.CommandText = """
             DELETE FROM WeeklySessions
-            WHERE SubjectId = $subjectId AND DayOfWeek = $dayOfWeek
+            WHERE SubjectId = $subjectId AND ClassType = $classType AND DayOfWeek = $dayOfWeek
               AND EffectiveFrom = $date;
             """;
         delete.Parameters.AddWithValue("$subjectId", subjectId);
+        delete.Parameters.AddWithValue("$classType", type.ToString());
         delete.Parameters.AddWithValue("$dayOfWeek", dayOfWeek);
         delete.Parameters.AddWithValue("$date", effectiveDate);
         var deleted = delete.ExecuteNonQuery();
@@ -229,11 +238,12 @@ public sealed class TimetableRepository
         close.CommandText = """
             UPDATE WeeklySessions
             SET EffectiveTo = $date, EndedByEndDate = 0
-            WHERE SubjectId = $subjectId AND DayOfWeek = $dayOfWeek
+            WHERE SubjectId = $subjectId AND ClassType = $classType AND DayOfWeek = $dayOfWeek
               AND EffectiveFrom < $date
               AND (EffectiveTo IS NULL OR EffectiveTo > $date);
             """;
         close.Parameters.AddWithValue("$subjectId", subjectId);
+        close.Parameters.AddWithValue("$classType", type.ToString());
         close.Parameters.AddWithValue("$dayOfWeek", dayOfWeek);
         close.Parameters.AddWithValue("$date", effectiveDate);
         var closed = close.ExecuteNonQuery();
@@ -249,7 +259,7 @@ public sealed class TimetableRepository
     // from "untilDate" with its original times, so nothing outside the range changes.
     // Everything happens in one transaction: either it all works or nothing changes.
     public void ReplaceDay(int dayOfWeek, DateOnly fromDate, DateOnly? untilDate,
-        IReadOnlyList<(long SubjectId, TimeOnly Start, TimeOnly End)> classes)
+        IReadOnlyList<(long SubjectId, SubjectType Type, TimeOnly Start, TimeOnly End)> classes)
     {
         if (dayOfWeek is < 0 or > 6)
             throw new ArgumentOutOfRangeException(nameof(dayOfWeek));
@@ -264,13 +274,15 @@ public sealed class TimetableRepository
         using var connection = new SqliteConnection(_connectionString);
         connection.Open();
         using var transaction = connection.BeginTransaction();
+        foreach (var item in classes)
+            EnsureEnabledType(connection, transaction, item.SubjectId, item.Type);
 
         var overlapping = new List<ReplacedRow>();
         using (var select = connection.CreateCommand())
         {
             select.Transaction = transaction;
             select.CommandText = """
-                SELECT ws.Id, ws.SubjectId, ws.StartTime, ws.EndTime,
+                SELECT ws.Id, ws.SubjectId, ws.ClassType, ws.StartTime, ws.EndTime,
                        ws.EffectiveFrom, ws.EffectiveTo, ws.EndedByEndDate
                 FROM WeeklySessions ws
                 JOIN Subjects s ON s.Id = ws.SubjectId
@@ -286,8 +298,9 @@ public sealed class TimetableRepository
             while (reader.Read())
             {
                 overlapping.Add(new ReplacedRow(
-                    reader.GetInt64(0), reader.GetInt64(1), reader.GetString(2), reader.GetString(3),
-                    reader.GetString(4), reader.IsDBNull(5) ? null : reader.GetString(5), reader.GetInt32(6)));
+                    reader.GetInt64(0), reader.GetInt64(1), Enum.Parse<SubjectType>(reader.GetString(2)),
+                    reader.GetString(3), reader.GetString(4), reader.GetString(5),
+                    reader.IsDBNull(6) ? null : reader.GetString(6), reader.GetInt32(7)));
             }
         }
 
@@ -314,10 +327,11 @@ public sealed class TimetableRepository
                     rest.Transaction = transaction;
                     rest.CommandText = """
                         INSERT INTO WeeklySessions
-                            (SubjectId, DayOfWeek, StartTime, EndTime, EffectiveFrom, EffectiveTo, EndedByEndDate)
-                        VALUES ($subjectId, $dayOfWeek, $start, $end, $from, $to, $ended);
+                            (SubjectId, ClassType, DayOfWeek, StartTime, EndTime, EffectiveFrom, EffectiveTo, EndedByEndDate)
+                        VALUES ($subjectId, $classType, $dayOfWeek, $start, $end, $from, $to, $ended);
                         """;
                     rest.Parameters.AddWithValue("$subjectId", row.SubjectId);
+                    rest.Parameters.AddWithValue("$classType", row.Type.ToString());
                     rest.Parameters.AddWithValue("$dayOfWeek", dayOfWeek);
                     rest.Parameters.AddWithValue("$start", row.StartTime);
                     rest.Parameters.AddWithValue("$end", row.EndTime);
@@ -352,10 +366,11 @@ public sealed class TimetableRepository
             insert.Transaction = transaction;
             insert.CommandText = """
                 INSERT INTO WeeklySessions
-                    (SubjectId, DayOfWeek, StartTime, EndTime, EffectiveFrom, EffectiveTo, EndedByEndDate)
-                VALUES ($subjectId, $dayOfWeek, $start, $end, $from, $to, 0);
+                    (SubjectId, ClassType, DayOfWeek, StartTime, EndTime, EffectiveFrom, EffectiveTo, EndedByEndDate)
+                VALUES ($subjectId, $classType, $dayOfWeek, $start, $end, $from, $to, 0);
                 """;
             insert.Parameters.AddWithValue("$subjectId", item.SubjectId);
+            insert.Parameters.AddWithValue("$classType", item.Type.ToString());
             insert.Parameters.AddWithValue("$dayOfWeek", dayOfWeek);
             insert.Parameters.AddWithValue("$start", FormatTime(item.Start));
             insert.Parameters.AddWithValue("$end", FormatTime(item.End));
@@ -367,28 +382,31 @@ public sealed class TimetableRepository
         transaction.Commit();
     }
 
-    private sealed record ReplacedRow(long Id, long SubjectId, string StartTime, string EndTime,
-        string EffectiveFrom, string? EffectiveTo, int EndedByEndDate);
+    private sealed record ReplacedRow(long Id, long SubjectId, SubjectType Type, string StartTime,
+        string EndTime, string EffectiveFrom, string? EffectiveTo, int EndedByEndDate);
 
-    // How many weekly classes, from effectiveOn onward, do not fit inside startHour..endHour.
-    public int CountOutsideHours(DateOnly effectiveOn, int startHour, int endHour)
+    // How many weekly classes overlapping the selected period do not fit inside startHour..endHour.
+    public int CountOutsideHours(DateOnly effectiveOn, int startHour, int endHour, DateOnly? untilExclusive)
     {
         using var connection = new SqliteConnection(_connectionString);
         connection.Open();
-        return ReadOutsideHours(connection, null, FormatDate(effectiveOn), startHour * 60, endHour * 60).Count;
+        return ReadOutsideHours(connection, null, FormatDate(effectiveOn),
+            untilExclusive is null ? null : FormatDate(untilExclusive.Value),
+            startHour * 60, endHour * 60).Count;
     }
 
-    // Crops every weekly class that runs on or after effectiveOn so it fits inside startHour..endHour:
-    // a class that crosses a boundary is shortened, a class completely outside is removed.
-    // Nothing before effectiveOn changes. A class that started earlier is closed on effectiveOn and
-    // carries on from that day with its cropped times, exactly like an ordinary timetable edit.
+    // Crops weekly classes overlapping [effectiveOn, untilExclusive) to startHour..endHour.
+    // Timetable portions outside that date range retain their original times.
     // Returns how many classes were cropped or removed.
-    public int CropToHours(DateOnly effectiveOn, int startHour, int endHour)
+    public int CropToHours(DateOnly effectiveOn, DateOnly? untilExclusive, int startHour, int endHour)
     {
         if (startHour < 0 || endHour > 23 || startHour >= endHour)
             throw new ArgumentException("The start hour must be earlier than the end hour, between 0 and 23.");
+        if (untilExclusive is not null && untilExclusive.Value <= effectiveOn)
+            throw new ArgumentException("The selected timetable period must have a positive date range.", nameof(untilExclusive));
 
         var date = FormatDate(effectiveOn);
+        var untilDate = untilExclusive is null ? null : FormatDate(untilExclusive.Value);
         var fromMinutes = startHour * 60;
         var toMinutes = endHour * 60;
 
@@ -396,116 +414,155 @@ public sealed class TimetableRepository
         connection.Open();
         using var transaction = connection.BeginTransaction();
 
-        var rows = ReadOutsideHours(connection, transaction, date, fromMinutes, toMinutes);
+        var rows = ReadOutsideHours(connection, transaction, date, untilDate, fromMinutes, toMinutes);
         foreach (var row in rows)
         {
             var newStart = Math.Max(row.StartMinutes, fromMinutes);
             var newEnd = Math.Min(row.EndMinutes, toMinutes);
             var stillHasHours = newStart < newEnd;
+            var startsBeforeRange = string.CompareOrdinal(row.EffectiveFrom, date) < 0;
+            var continuesAfterRange = untilDate is not null
+                && (row.EffectiveTo is null || string.CompareOrdinal(row.EffectiveTo, untilDate) > 0);
 
-            if (string.CompareOrdinal(row.EffectiveFrom, date) >= 0)
+            if (startsBeforeRange)
             {
-                // This version starts on or after the chosen date, so it can be changed in place.
-                using var change = connection.CreateCommand();
-                change.Transaction = transaction;
-                if (stillHasHours)
-                {
-                    change.CommandText = "UPDATE WeeklySessions SET StartTime = $start, EndTime = $end WHERE Id = $id;";
-                    change.Parameters.AddWithValue("$start", FormatMinutes(newStart));
-                    change.Parameters.AddWithValue("$end", FormatMinutes(newEnd));
-                }
-                else
-                {
-                    change.CommandText = "DELETE FROM WeeklySessions WHERE Id = $id;";
-                }
-                change.Parameters.AddWithValue("$id", row.Id);
-                change.ExecuteNonQuery();
-                continue;
-            }
-
-            // This version started before the chosen date: keep its earlier days exactly as they were.
-            using (var close = connection.CreateCommand())
-            {
+                using var close = connection.CreateCommand();
                 close.Transaction = transaction;
                 close.CommandText = "UPDATE WeeklySessions SET EffectiveTo = $date, EndedByEndDate = 0 WHERE Id = $id;";
                 close.Parameters.AddWithValue("$date", date);
                 close.Parameters.AddWithValue("$id", row.Id);
                 close.ExecuteNonQuery();
             }
+            else if (!stillHasHours)
+            {
+                using var delete = connection.CreateCommand();
+                delete.Transaction = transaction;
+                delete.CommandText = "DELETE FROM WeeklySessions WHERE Id = $id;";
+                delete.Parameters.AddWithValue("$id", row.Id);
+                delete.ExecuteNonQuery();
+            }
 
-            if (!stillHasHours) continue;
+            if (stillHasHours)
+            {
+                if (startsBeforeRange)
+                {
+                    InsertCroppedSession(connection, transaction, row, date,
+                        continuesAfterRange ? untilDate : row.EffectiveTo, newStart, newEnd);
+                }
+                else
+                {
+                    using var update = connection.CreateCommand();
+                    update.Transaction = transaction;
+                    update.CommandText = continuesAfterRange
+                        ? "UPDATE WeeklySessions SET StartTime = $start, EndTime = $end, EffectiveTo = $until WHERE Id = $id;"
+                        : "UPDATE WeeklySessions SET StartTime = $start, EndTime = $end WHERE Id = $id;";
+                    update.Parameters.AddWithValue("$start", FormatMinutes(newStart));
+                    update.Parameters.AddWithValue("$end", FormatMinutes(newEnd));
+                    if (continuesAfterRange)
+                        update.Parameters.AddWithValue("$until", untilDate);
+                    update.Parameters.AddWithValue("$id", row.Id);
+                    update.ExecuteNonQuery();
+                }
+            }
 
-            using var insert = connection.CreateCommand();
-            insert.Transaction = transaction;
-            insert.CommandText = """
-                INSERT INTO WeeklySessions
-                    (SubjectId, DayOfWeek, StartTime, EndTime, EffectiveFrom, EffectiveTo, EndedByEndDate)
-                VALUES ($subjectId, $dayOfWeek, $start, $end, $from, $to, $ended);
-                """;
-            insert.Parameters.AddWithValue("$subjectId", row.SubjectId);
-            insert.Parameters.AddWithValue("$dayOfWeek", row.DayOfWeek);
-            insert.Parameters.AddWithValue("$start", FormatMinutes(newStart));
-            insert.Parameters.AddWithValue("$end", FormatMinutes(newEnd));
-            insert.Parameters.AddWithValue("$from", date);
-            insert.Parameters.AddWithValue("$to", (object?)row.EffectiveTo ?? DBNull.Value);
-            insert.Parameters.AddWithValue("$ended", row.EndedByEndDate);
-            insert.ExecuteNonQuery();
+            if (continuesAfterRange)
+                InsertCroppedSession(connection, transaction, row, untilDate!, row.EffectiveTo,
+                    row.StartMinutes, row.EndMinutes);
         }
 
         transaction.Commit();
         return rows.Count;
     }
 
-    private sealed record OutsideHoursRow(long Id, long SubjectId, int DayOfWeek, int StartMinutes, int EndMinutes,
-        string EffectiveFrom, string? EffectiveTo, int EndedByEndDate);
+    private sealed record OutsideHoursRow(long Id, long SubjectId, SubjectType Type, int DayOfWeek,
+        int StartMinutes, int EndMinutes, string EffectiveFrom, string? EffectiveTo, int EndedByEndDate);
 
-    // The classes that run on or after this date (the same subjects the timetable shows) and reach
-    // outside fromMinutes..toMinutes.
+    private static void InsertCroppedSession(SqliteConnection connection, SqliteTransaction transaction,
+        OutsideHoursRow row, string effectiveFrom, string? effectiveTo, int startMinutes, int endMinutes)
+    {
+        using var insert = connection.CreateCommand();
+        insert.Transaction = transaction;
+        insert.CommandText = """
+            INSERT INTO WeeklySessions
+                (SubjectId, ClassType, DayOfWeek, StartTime, EndTime, EffectiveFrom, EffectiveTo, EndedByEndDate)
+            VALUES ($subjectId, $classType, $dayOfWeek, $start, $end, $from, $to, $ended);
+            """;
+        insert.Parameters.AddWithValue("$subjectId", row.SubjectId);
+        insert.Parameters.AddWithValue("$classType", row.Type.ToString());
+        insert.Parameters.AddWithValue("$dayOfWeek", row.DayOfWeek);
+        insert.Parameters.AddWithValue("$start", FormatMinutes(startMinutes));
+        insert.Parameters.AddWithValue("$end", FormatMinutes(endMinutes));
+        insert.Parameters.AddWithValue("$from", effectiveFrom);
+        insert.Parameters.AddWithValue("$to", (object?)effectiveTo ?? DBNull.Value);
+        insert.Parameters.AddWithValue("$ended", row.EndedByEndDate);
+        insert.ExecuteNonQuery();
+    }
+
+    // Classes overlapping [date, untilDate) that reach outside the chosen time range.
     private static List<OutsideHoursRow> ReadOutsideHours(SqliteConnection connection, SqliteTransaction? transaction,
-        string date, int fromMinutes, int toMinutes)
+        string date, string? untilDate, int fromMinutes, int toMinutes)
     {
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
-            SELECT ws.Id, ws.SubjectId, ws.DayOfWeek, ws.StartTime, ws.EndTime,
+            SELECT ws.Id, ws.SubjectId, ws.ClassType, ws.DayOfWeek, ws.StartTime, ws.EndTime,
                    ws.EffectiveFrom, ws.EffectiveTo, ws.EndedByEndDate
             FROM WeeklySessions ws
             JOIN Subjects s ON s.Id = ws.SubjectId
             WHERE (s.IsArchived = 0 OR s.ArchivedOn > $date)
-              AND (ws.EffectiveTo IS NULL OR ws.EffectiveTo > $date);
+              AND (ws.EffectiveTo IS NULL OR ws.EffectiveTo > $date)
+              AND ($until IS NULL OR ws.EffectiveFrom < $until);
             """;
         command.Parameters.AddWithValue("$date", date);
+        command.Parameters.AddWithValue("$until", (object?)untilDate ?? DBNull.Value);
 
         var rows = new List<OutsideHoursRow>();
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
-            var start = ParseMinutes(reader.GetString(3));
-            var end = ParseMinutes(reader.GetString(4));
+            var start = ParseMinutes(reader.GetString(4));
+            var end = ParseMinutes(reader.GetString(5));
             if (start >= fromMinutes && end <= toMinutes) continue;
 
             rows.Add(new OutsideHoursRow(
-                reader.GetInt64(0), reader.GetInt64(1), reader.GetInt32(2), start, end,
-                reader.GetString(5), reader.IsDBNull(6) ? null : reader.GetString(6), reader.GetInt32(7)));
+                reader.GetInt64(0), reader.GetInt64(1), Enum.Parse<SubjectType>(reader.GetString(2)),
+                reader.GetInt32(3), start, end, reader.GetString(6),
+                reader.IsDBNull(7) ? null : reader.GetString(7), reader.GetInt32(8)));
         }
         return rows;
     }
 
     private static string? FindNextStart(SqliteConnection connection, SqliteTransaction transaction,
-        long subjectId, int dayOfWeek, string effectiveDate)
+        long subjectId, SubjectType type, int dayOfWeek, string effectiveDate)
     {
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
             SELECT MIN(EffectiveFrom)
             FROM WeeklySessions
-            WHERE SubjectId = $subjectId AND DayOfWeek = $dayOfWeek
+            WHERE SubjectId = $subjectId AND ClassType = $classType AND DayOfWeek = $dayOfWeek
               AND EffectiveFrom > $date;
             """;
         command.Parameters.AddWithValue("$subjectId", subjectId);
+        command.Parameters.AddWithValue("$classType", type.ToString());
         command.Parameters.AddWithValue("$dayOfWeek", dayOfWeek);
         command.Parameters.AddWithValue("$date", effectiveDate);
         return command.ExecuteScalar() as string;
+    }
+
+    private static void EnsureEnabledType(SqliteConnection connection, SqliteTransaction transaction,
+        long subjectId, SubjectType type)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            SELECT 1 FROM SubjectClassTypes
+            WHERE SubjectId = $subjectId AND Type = $type;
+            """;
+        command.Parameters.AddWithValue("$subjectId", subjectId);
+        command.Parameters.AddWithValue("$type", type.ToString());
+        if (command.ExecuteScalar() is null)
+            throw new InvalidOperationException($"{type} is not enabled for this subject.");
     }
 
     private static string FormatDate(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);

@@ -27,6 +27,7 @@ public sealed class DataResetRepository
         command.CommandText = """
             DELETE FROM AttendanceRecords;
             DELETE FROM WeeklySessions;
+            DELETE FROM SubjectClassTypes;
             DELETE FROM Subjects;
             DELETE FROM AppSettings;
             DELETE FROM sqlite_sequence;
