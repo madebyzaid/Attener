@@ -7,6 +7,7 @@ using Attener.Features.Subjects;
 using Attener.Features.Timetable;
 using Attener.Infrastructure.Database;
 using Attener.Infrastructure.Dialogs;
+using System.Windows.Controls.Primitives;
 
 namespace Attener.Views;
 
@@ -341,25 +342,109 @@ public partial class TimetableView : UserControl
         var offset = hourWidth > 0 ? (int)(Mouse.GetPosition(button).X / hourWidth) : 0;
         var cell = (Day: day, Hour: firstHour + Math.Clamp(offset, 0, span - 1));
 
-        var menu = new ContextMenu();
+        var popup = new Popup
+        {
+            PlacementTarget = button,
+            Placement = PlacementMode.Bottom,
+            VerticalOffset = 4,
+            StaysOpen = false,
+            AllowsTransparency = true,
+            PopupAnimation = PopupAnimation.Fade
+        };
+
+        var list = new StackPanel();
         if (_activeSubjects.Count == 0)
         {
-            menu.Items.Add(new MenuItem { Header = "No subjects yet - add one in Subjects", IsEnabled = false });
+            list.Children.Add(new TextBlock
+            {
+                Text = "No subjects yet - add one in Subjects",
+                FontSize = 12,
+                Foreground = (Brush)FindResource("SecondaryTextBrush"),
+                Margin = new Thickness(10, 8, 10, 8)
+            });
         }
+
         foreach (var subject in _activeSubjects)
         {
-            var item = new MenuItem { Header = subject.Name };
+            var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            row.Children.Add(new TextBlock
+            {
+                Text = subject.Name,
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 200,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(10, 0, 18, 0)
+            });
+
+            // One badge per class type that is enabled for this subject.
+            var badges = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 6, 0) };
             foreach (var type in subject.Types)
             {
-                var typeItem = new MenuItem { Header = type.ToString() };
+                var normalBackground = (Brush)FindResource("WindowBackgroundBrush");
+                var hoverBackground = (Brush)FindResource("AccentBrush");
+                var badge = new Button
+                {
+                    Content = TypeLetter(type),
+                    ToolTip = type.ToString(),
+                    Width = 30,
+                    Height = 28,
+                    Padding = new Thickness(0),
+                    Margin = new Thickness(5, 0, 0, 0),
+                    FontSize = 12,
+                    FontWeight = FontWeights.SemiBold,
+                    Background = normalBackground,
+                    Foreground = (Brush)FindResource("PrimaryTextBrush"),
+                    BorderBrush = (Brush)FindResource("BorderBrush"),
+                    BorderThickness = new Thickness(1),
+                    Cursor = Cursors.Hand
+                };
+                badge.MouseEnter += (_, _) => badge.Background = hoverBackground;
+                badge.MouseLeave += (_, _) => badge.Background = normalBackground;
+
                 var assignment = new ClassAssignment(subject.Id, type);
-                typeItem.Click += (_, _) => ChangeHours(cell.Day, [cell.Hour], assignment);
-                item.Items.Add(typeItem);
+                badge.Click += (_, _) =>
+                {
+                    // Close first: ChangeHours rebuilds the whole grid, including the button this popup sits on.
+                    popup.IsOpen = false;
+                    ChangeHours(cell.Day, [cell.Hour], assignment);
+                };
+                badges.Children.Add(badge);
             }
-            menu.Items.Add(item);
+            Grid.SetColumn(badges, 1);
+            row.Children.Add(badges);
+            list.Children.Add(row);
         }
-        menu.PlacementTarget = button; menu.IsOpen = true;
+
+        popup.Child = new Border
+        {
+            Background = (Brush)FindResource("SurfaceBackgroundBrush"),
+            BorderBrush = (Brush)FindResource("BorderBrush"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(4),
+            MinWidth = 240,
+            Child = new ScrollViewer
+            {
+                MaxHeight = 320,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Content = list
+            }
+        };
+        popup.IsOpen = true;
     }
+
+    private static string TypeLetter(SubjectType type) => type switch
+    {
+        SubjectType.Lecture => "L",
+        SubjectType.Tutorial => "T",
+        SubjectType.Practical => "P",
+        _ => "?"
+    };
 
     private void RemoveBlock_Click(object sender, RoutedEventArgs e)
     {
