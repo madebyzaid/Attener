@@ -1,9 +1,12 @@
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using Attener.Features.Subjects;
 using Attener.Infrastructure.Database;
+using Attener.Infrastructure.Dialogs;
 
 namespace Attener.Views;
 
@@ -30,7 +33,8 @@ public partial class SubjectsView : UserControl
     private void LoadSubjects()
     {
         var subjects = _repository.GetSubjects(_showArchived);
-        SubjectsList.ItemsSource = subjects;
+        var cards = subjects.Select(subject => new SubjectCardViewModel(subject)).ToArray();
+        SubjectsList.ItemsSource = cards;
         EmptyStateText.Visibility = subjects.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         EmptyStateText.Text = _showArchived
             ? "Archived subjects will appear here. Their attendance records remain saved."
@@ -48,7 +52,7 @@ public partial class SubjectsView : UserControl
         var types = GetSelectedTypes(AddLectureCheckBox, AddTutorialCheckBox, AddPracticalCheckBox);
         if (name.Length == 0)
         {
-            MessageBox.Show("Enter a subject code first.", "Subject code required",
+            InAppDialogService.Show(this, "Enter a subject code first.", "Subject code required",
                 MessageBoxButton.OK, MessageBoxImage.Information);
             SubjectNameBox.Focus();
             return;
@@ -56,7 +60,7 @@ public partial class SubjectsView : UserControl
 
         if (types.Count == 0)
         {
-            MessageBox.Show("Select at least one class type.", "Class type required",
+            InAppDialogService.Show(this, "Select at least one class type.", "Class type required",
                 MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
@@ -71,7 +75,7 @@ public partial class SubjectsView : UserControl
 
         if (!_repository.AddSubject(name, classDetails))
         {
-            MessageBox.Show("A subject with that code already exists, including archived subjects.",
+            InAppDialogService.Show(this, "A subject with that code already exists, including archived subjects.",
                 "Subject already exists", MessageBoxButton.OK, MessageBoxImage.Information);
             SubjectNameBox.SelectAll();
             SubjectNameBox.Focus();
@@ -115,12 +119,15 @@ public partial class SubjectsView : UserControl
 
     private void EditSubject_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button { DataContext: SubjectSummary subject }) return;
+        if (sender is not Button { DataContext: SubjectCardViewModel card }) return;
+        var subject = card.Subject;
 
         TextBox CreateInput(string text) => new()
         {
             Text = text,
             Height = 40,
+            Padding = new Thickness(10, 6, 10, 6),
+            FontSize = 13,
             VerticalContentAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 5, 0, 12),
             Style = (Style)FindResource("RoundedTextBoxStyle")
@@ -161,29 +168,14 @@ public partial class SubjectsView : UserControl
         panel.Children.Add(typeInputs.Cards);
         panel.Children.Add(buttons);
 
-        var dialog = new Window
-        {
-            Title = "Edit subject",
-            Content = new ScrollViewer
-            {
-                Content = panel,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                MaxHeight = SystemParameters.WorkArea.Height * 0.85
-            },
-            SizeToContent = SizeToContent.WidthAndHeight,
-            Width = 470,
-            ResizeMode = ResizeMode.CanResize,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Owner = Window.GetWindow(this),
-            Background = (Brush)FindResource("SurfaceBackgroundBrush")
-        };
+        nameInput.GotKeyboardFocus += (_, _) => nameInput.SelectAll();
+        cancel.Click += (_, _) => InAppDialogService.CloseCustom(this, false);
         save.Click += (_, _) =>
         {
             var selectedDetails = GetSelectedClassDetails(typeInputs.Editors);
             if (selectedDetails.Count == 0)
             {
-                MessageBox.Show("Select at least one class type.", "Class type required",
+                InAppDialogService.Show(this, "Select at least one class type.", "Class type required",
                     MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
@@ -192,7 +184,7 @@ public partial class SubjectsView : UserControl
             if (removedTypes.Length > 0)
             {
                 var removedList = string.Join(", ", removedTypes);
-                var confirmation = MessageBox.Show(
+                var confirmation = InAppDialogService.Show(this,
                     $"Remove {removedList} from {subject.Name}? Its timetable entries and attendance history for those class types will be permanently deleted. This cannot be undone.",
                     "Delete class type data", MessageBoxButton.YesNo, MessageBoxImage.Warning,
                     MessageBoxResult.No);
@@ -200,11 +192,11 @@ public partial class SubjectsView : UserControl
                     return;
             }
 
-            dialog.DialogResult = true;
+            InAppDialogService.CloseCustom(this, true);
         };
-        dialog.Loaded += (_, _) => { nameInput.Focus(); nameInput.SelectAll(); };
 
-        if (dialog.ShowDialog() != true || string.IsNullOrWhiteSpace(nameInput.Text)) return;
+        if (InAppDialogService.ShowCustom(this, panel, nameInput) != true
+            || string.IsNullOrWhiteSpace(nameInput.Text)) return;
         try
         {
             _repository.UpdateSubject(subject.Id, nameInput.Text, GetSelectedClassDetails(typeInputs.Editors));
@@ -212,7 +204,7 @@ public partial class SubjectsView : UserControl
         }
         catch (Microsoft.Data.Sqlite.SqliteException)
         {
-            MessageBox.Show("A subject with that code already exists.", "Code already used",
+            InAppDialogService.Show(this, "A subject with that code already exists.", "Code already used",
                 MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
@@ -229,16 +221,18 @@ public partial class SubjectsView : UserControl
             var professorInput = new TextBox
             {
                 Text = details.Professor,
-                Height = 36,
-                Padding = new Thickness(9, 6, 9, 6),
+                Height = 40,
+                Padding = new Thickness(10, 6, 10, 6),
+                FontSize = 13,
                 VerticalContentAlignment = VerticalAlignment.Center,
                 Style = (Style)FindResource("RoundedTextBoxStyle")
             };
             var venueInput = new TextBox
             {
                 Text = details.Venue,
-                Height = 36,
-                Padding = new Thickness(9, 6, 9, 6),
+                Height = 40,
+                Padding = new Thickness(10, 6, 10, 6),
+                FontSize = 13,
                 VerticalContentAlignment = VerticalAlignment.Center,
                 Style = (Style)FindResource("RoundedTextBoxStyle")
             };
@@ -321,14 +315,57 @@ public partial class SubjectsView : UserControl
         StackPanel CheckBoxes,
         StackPanel Cards,
         IReadOnlyDictionary<SubjectType, TypeEditor> Editors);
+
+    private void SubjectCard_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is Grid { DataContext: SubjectCardViewModel card })
+            card.IsExpanded = !card.IsExpanded;
+    }
+
+    private sealed class SubjectCardViewModel : INotifyPropertyChanged
+    {
+        public SubjectSummary Subject { get; }
+        public long Id => Subject.Id;
+        public string Name => Subject.Name;
+        public bool IsArchived => Subject.IsArchived;
+        public IReadOnlyList<SubjectClassDetails> ClassDetails => Subject.ClassDetails;
+        public string TypeAbbreviations => string.Join(" ", Subject.Types.Select(type => type switch
+        {
+            SubjectType.Lecture => "L",
+            SubjectType.Tutorial => "T",
+            SubjectType.Practical => "P",
+            _ => throw new ArgumentOutOfRangeException(nameof(type))
+        }));
+
+        private bool _isExpanded;
+        public bool IsExpanded
+        {
+            get => _isExpanded;
+            set
+            {
+                if (_isExpanded == value) return;
+                _isExpanded = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public SubjectCardViewModel(SubjectSummary subject) => Subject = subject;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        private void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
     private void ArchiveSubject_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button { Tag: long subjectId, DataContext: SubjectSummary subject })
+        if (sender is not Button { Tag: long subjectId, DataContext: SubjectCardViewModel card })
         {
             return;
         }
 
-        var result = MessageBox.Show(
+        var subject = card.Subject;
+        var result = InAppDialogService.Show(this,
             $"Archive {subject.Name}? Its attendance history will be preserved.",
             "Archive subject", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (result != MessageBoxResult.Yes)
@@ -343,12 +380,13 @@ public partial class SubjectsView : UserControl
     // Permanently deletes the subject and everything recorded for it. Just one OK click confirms.
     private void DeleteSubject_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button { Tag: long subjectId, DataContext: SubjectSummary subject })
+        if (sender is not Button { Tag: long subjectId, DataContext: SubjectCardViewModel card })
         {
             return;
         }
 
-        var result = MessageBox.Show(
+        var subject = card.Subject;
+        var result = InAppDialogService.Show(this,
             $"Permanently delete {subject.Name}? All of its attendance records and timetable entries will be deleted. This cannot be undone.",
             "Delete subject", MessageBoxButton.OKCancel, MessageBoxImage.Warning, MessageBoxResult.Cancel);
         if (result != MessageBoxResult.OK)
@@ -362,7 +400,7 @@ public partial class SubjectsView : UserControl
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Could not delete the subject. {ex.Message}", "Delete failed",
+            InAppDialogService.Show(this, $"Could not delete the subject. {ex.Message}", "Delete failed",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
 

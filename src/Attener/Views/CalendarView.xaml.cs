@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using Attener.Domain;
 using Attener.Features.Attendance;
+using Attener.Infrastructure.Dialogs;
 using Attener.Features.Subjects;
 using Attener.Features.Timetable;
 using Attener.Infrastructure.Database;
@@ -116,7 +117,7 @@ public partial class CalendarView : UserControl
     private void DeleteManual_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement { DataContext: CalendarSessionRow row } || !row.Entry.IsManual) return;
-        var answer = MessageBox.Show($"Delete this {row.Entry.SubjectName} entry for {row.Entry.AttendanceDate:dd MMM yyyy}? This cannot be undone.",
+        var answer = InAppDialogService.Show(this, $"Delete this {row.Entry.SubjectName} entry for {row.Entry.AttendanceDate:dd MMM yyyy}? This cannot be undone.",
             "Delete entry", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
         if (answer != MessageBoxResult.Yes) return;
         _attendance.DeleteManualEntry(row.Entry.Id);

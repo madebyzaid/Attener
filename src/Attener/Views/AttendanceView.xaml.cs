@@ -6,6 +6,7 @@ using Attener.Domain;
 using Attener.Features.Attendance;
 using Attener.Features.Subjects;
 using Attener.Infrastructure.Database;
+using Attener.Infrastructure.Dialogs;
 
 namespace Attener.Views;
 
@@ -108,7 +109,7 @@ public partial class AttendanceView : UserControl
         if (sender is not FrameworkElement { DataContext: AttendanceRow row } || !row.Entry.IsManual)
             return;
 
-        var answer = MessageBox.Show(
+        var answer = InAppDialogService.Show(this,
             $"Delete this {row.Entry.SubjectName} entry for {row.Entry.AttendanceDate:dd MMM yyyy}? This cannot be undone.",
             "Delete entry", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
         if (answer != MessageBoxResult.Yes)
@@ -118,7 +119,7 @@ public partial class AttendanceView : UserControl
         LoadAttendance();
     }
 
-    // Pop-up for adding attendance by hand: an existing subject, any date, a status and a duration.
+    // In-app form for adding attendance by hand.
     private void AddManual_Click(object sender, RoutedEventArgs e) => AddManualForDate();
 
     public void AddManualForDate(DateTime? initialDate = null, bool lockDate = false)
@@ -131,7 +132,7 @@ public partial class AttendanceView : UserControl
             .ToList();
         if (choices.Count == 0)
         {
-            MessageBox.Show("Add a subject in Subjects first.", "No subjects yet",
+            InAppDialogService.Show(this, "Add a subject in Subjects first.", "No subjects yet",
                 MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
@@ -203,30 +204,21 @@ public partial class AttendanceView : UserControl
         panel.Children.Add(durationBox);
         panel.Children.Add(buttons);
 
-        var dialog = new Window
-        {
-            Title = "Add entry",
-            Content = panel,
-            SizeToContent = SizeToContent.WidthAndHeight,
-            ResizeMode = ResizeMode.NoResize,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Owner = Window.GetWindow(this),
-            Background = (Brush)FindResource("SurfaceBackgroundBrush")
-        };
-
         var minutes = 0;
+        cancel.Click += (_, _) => InAppDialogService.CloseCustom(this, false);
         save.Click += (_, _) =>
         {
             if (dateBox.SelectedDate is null)
             {
-                MessageBox.Show("Choose a date.", "Date required", MessageBoxButton.OK, MessageBoxImage.Information);
+                InAppDialogService.Show(this, "Choose a date.", "Date required",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
             if (!decimal.TryParse(durationBox.Text.Trim().Replace(',', '.'), NumberStyles.AllowDecimalPoint,
                     CultureInfo.InvariantCulture, out var hours) || hours <= 0 || hours > 24)
             {
-                MessageBox.Show("Enter a duration between 0 and 24 hours, such as 1 or 0.75.",
+                InAppDialogService.Show(this, "Enter a duration between 0 and 24 hours, such as 1 or 0.75.",
                     "Check the duration", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
@@ -234,15 +226,15 @@ public partial class AttendanceView : UserControl
             minutes = (int)Math.Round(hours * 60m, MidpointRounding.AwayFromZero);
             if (minutes < 1)
             {
-                MessageBox.Show("That duration is too short. Try at least 0.02 hours (about a minute).",
+                InAppDialogService.Show(this, "That duration is too short. Try at least 0.02 hours (about a minute).",
                     "Check the duration", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
-            dialog.DialogResult = true;
+            InAppDialogService.CloseCustom(this, true);
         };
 
-        if (dialog.ShowDialog() != true)
+        if (InAppDialogService.ShowCustom(this, panel, subjectBox) != true)
             return;
 
         var chosenSubject = (SubjectChoice)subjectBox.SelectedItem;

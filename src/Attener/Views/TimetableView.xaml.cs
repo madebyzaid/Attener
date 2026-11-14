@@ -6,6 +6,7 @@ using Attener.Features.Attendance;
 using Attener.Features.Subjects;
 using Attener.Features.Timetable;
 using Attener.Infrastructure.Database;
+using Attener.Infrastructure.Dialogs;
 
 namespace Attener.Views;
 
@@ -405,7 +406,7 @@ public partial class TimetableView : UserControl
             LoadHistory(_period is null ? null : fromDate);
             ShowSelectedTimetable();
         }
-        catch (Exception ex) { MessageBox.Show($"Could not update this day. {ex.Message}", "Timetable update failed", MessageBoxButton.OK, MessageBoxImage.Error); BuildGrid(); }
+        catch (Exception ex) { InAppDialogService.Show(this, $"Could not update this day. {ex.Message}", "Timetable update failed", MessageBoxButton.OK, MessageBoxImage.Error); BuildGrid(); }
     }
 
     // After a timetable change from this date, bring the stored attendance records in line with it:
@@ -443,7 +444,7 @@ public partial class TimetableView : UserControl
         {
             if (!StartHourPicker.TryGetTime(out var startTime) || !EndHourPicker.TryGetTime(out var endTime))
             {
-                MessageBox.Show("Enter whole hours, for example 8 or 08:00, or pick them on the clock.", "Invalid hours",
+                InAppDialogService.Show(this, "Enter whole hours, for example 8 or 08:00, or pick them on the clock.", "Invalid hours",
                     MessageBoxButton.OK, MessageBoxImage.Information);
                 ShowHourRange();
                 return;
@@ -455,7 +456,7 @@ public partial class TimetableView : UserControl
 
             if (start >= end)
             {
-                MessageBox.Show("The start must be earlier than the end, between 00:00 and 23:00.", "Invalid hours",
+                InAppDialogService.Show(this, "The start must be earlier than the end, between 00:00 and 23:00.", "Invalid hours",
                     MessageBoxButton.OK, MessageBoxImage.Information);
                 ShowHourRange();
                 return;
@@ -472,7 +473,7 @@ public partial class TimetableView : UserControl
                 var outside = _timetable.CountOutsideHours(cropFrom, start, end, until);
                 if (outside > 0)
                 {
-                    var answer = MessageBox.Show(
+                    var answer = InAppDialogService.Show(this,
                         $"{outside} weekly {(outside == 1 ? "class falls" : "classes fall")} outside {start:00}:00 to {end:00}:00. " +
                         $"Continuing will shorten or remove {(outside == 1 ? "it" : "them")} for {affectedDates}.\n\n" +
                         "Other timetable periods and marked attendance are not changed. This cannot be undone.\n\nContinue?",
@@ -493,7 +494,7 @@ public partial class TimetableView : UserControl
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Could not change the hours. {ex.Message}", "Hours not changed",
+                InAppDialogService.Show(this, $"Could not change the hours. {ex.Message}", "Hours not changed",
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 ShowHourRange();
                 BuildGrid();

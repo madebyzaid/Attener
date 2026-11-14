@@ -3,38 +3,19 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="Transparent">
     <UserControl.Resources>
-        <!-- Rounded name box, based on the app's TextBox style. Accent outline while typing. -->
+        <!-- Subject editor inputs inherit the app-wide textbox template. -->
         <Style x:Key="RoundedTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
             <Setter Property="CaretBrush" Value="{StaticResource PrimaryTextBrush}" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TextBox">
-                        <Border x:Name="Box" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
-                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"
-                                          Focusable="False" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
         </Style>
 
         <DataTemplate x:Key="SubjectClassDetailTemplate">
-            <StackPanel Margin="0,5,0,0">
-                <Border Background="{StaticResource HoverBrush}" CornerRadius="5"
-                        Padding="7,3" HorizontalAlignment="Left">
-                    <TextBlock Text="{Binding Type}" FontSize="10" FontWeight="SemiBold"
-                               Foreground="{StaticResource SecondaryTextBrush}" />
-                </Border>
+            <StackPanel Width="180" Margin="0,6,8,0">
+                <TextBlock Text="{Binding Type}" FontSize="11" FontWeight="SemiBold"
+                           Foreground="{StaticResource SecondaryTextBrush}" />
                 <TextBlock Text="{Binding Professor}" FontSize="11"
-                           Foreground="{StaticResource SecondaryTextBrush}" Margin="0,3,0,0">
+                           Foreground="{StaticResource SecondaryTextBrush}" Margin="0,5,0,0"
+                           TextTrimming="CharacterEllipsis" ToolTip="{Binding Professor}">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
                             <Style.Triggers>
@@ -46,7 +27,8 @@
                     </TextBlock.Style>
                 </TextBlock>
                 <TextBlock Text="{Binding Venue}" FontSize="11"
-                           Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,0">
+                           Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,0"
+                           TextTrimming="CharacterEllipsis" ToolTip="{Binding Venue}">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
                             <Style.Triggers>
@@ -70,19 +52,47 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <StackPanel VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold"
-                                       VerticalAlignment="Center" />
-                        </StackPanel>
-                        <ItemsControl ItemsSource="{Binding ClassDetails}"
-                                      ItemTemplate="{StaticResource SubjectClassDetailTemplate}" />
-                    </StackPanel>
+                    <Grid VerticalAlignment="Center" Cursor="Hand"
+                          MouseLeftButtonUp="SubjectCard_Click">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <TextBlock Grid.Column="1" Text="{Binding TypeAbbreviations}"
+                                   FontSize="11" Foreground="{StaticResource SecondaryTextBrush}"
+                                   VerticalAlignment="Center" />
+                        <ItemsControl Grid.Row="1" Grid.ColumnSpan="2" ItemsSource="{Binding ClassDetails}"
+                                      ItemTemplate="{StaticResource SubjectClassDetailTemplate}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.Style>
+                                <Style TargetType="ItemsControl">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ItemsControl.Style>
+                        </ItemsControl>
+                    </Grid>
                     <Button Grid.Column="1" Content="Edit" Tag="{Binding}" Click="EditSubject_Click"
-                            Padding="12,6" Margin="0,0,8,0" Foreground="{StaticResource SecondaryTextBrush}"
+                            Height="36" Padding="12,6" Margin="0,0,8,0"
+                            VerticalAlignment="Center" Foreground="{StaticResource SecondaryTextBrush}"
                             Background="{StaticResource HoverBrush}" BorderThickness="0" Cursor="Hand" />
                     <Button Grid.Column="2" Content="Archive" Tag="{Binding Id}"
-                            Click="ArchiveSubject_Click" Padding="12,6" Margin="0,0,8,0"
+                            Click="ArchiveSubject_Click" Height="36" Padding="12,6" Margin="0,0,8,0"
+                            VerticalAlignment="Center"
                             Foreground="{StaticResource SecondaryTextBrush}"
                             Background="{StaticResource HoverBrush}" BorderThickness="0" Cursor="Hand">
                         <Button.Style>
@@ -97,7 +107,8 @@
                         </Button.Style>
                     </Button>
                     <Button Grid.Column="3" Content="Delete" Tag="{Binding Id}"
-                            Click="DeleteSubject_Click" Padding="12,6"
+                            Click="DeleteSubject_Click" Height="36" Padding="12,6"
+                            VerticalAlignment="Center"
                             Foreground="{StaticResource SecondaryTextBrush}"
                             Background="{StaticResource HoverBrush}" BorderThickness="0" Cursor="Hand" />
                 </Grid>
@@ -134,7 +145,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Margin="0,0,12,0">
                     <TextBlock Text="Subject code" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,5" />
-                    <TextBox x:Name="SubjectNameBox" Height="36" Padding="10,7" FontSize="13"
+                    <TextBox x:Name="SubjectNameBox" Height="40" Padding="10,6" FontSize="13"
                              Background="{StaticResource WindowBackgroundBrush}" BorderThickness="1"
                              ToolTip="Subject code" KeyDown="SubjectNameBox_KeyDown" />
                 </StackPanel>
@@ -160,11 +171,13 @@
                         <StackPanel>
                             <TextBlock Text="Lecture" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6" />
                             <TextBlock Text="Professor" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
-                            <TextBox x:Name="AddLectureProfessorBox" Height="30" Padding="8,5" FontSize="11"
+                            <TextBox x:Name="AddLectureProfessorBox" Height="40" Padding="10,6" FontSize="13"
+                                     VerticalContentAlignment="Center"
                                      Background="{StaticResource SurfaceBackgroundBrush}" BorderThickness="1"
                                      ToolTip="Lecture professor" KeyDown="SubjectNameBox_KeyDown" />
                             <TextBlock Text="Venue" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,5,0,0" />
-                            <TextBox x:Name="AddLectureVenueBox" Height="30" Padding="8,5" FontSize="11"
+                            <TextBox x:Name="AddLectureVenueBox" Height="40" Padding="10,6" FontSize="13"
+                                     VerticalContentAlignment="Center"
                                      Background="{StaticResource SurfaceBackgroundBrush}" BorderThickness="1"
                                      ToolTip="Lecture venue" KeyDown="SubjectNameBox_KeyDown" />
                         </StackPanel>
@@ -175,11 +188,13 @@
                         <StackPanel>
                             <TextBlock Text="Tutorial" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6" />
                             <TextBlock Text="Professor" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
-                            <TextBox x:Name="AddTutorialProfessorBox" Height="30" Padding="8,5" FontSize="11"
+                            <TextBox x:Name="AddTutorialProfessorBox" Height="40" Padding="10,6" FontSize="13"
+                                     VerticalContentAlignment="Center"
                                      Background="{StaticResource SurfaceBackgroundBrush}" BorderThickness="1"
                                      ToolTip="Tutorial professor" KeyDown="SubjectNameBox_KeyDown" />
                             <TextBlock Text="Venue" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,5,0,0" />
-                            <TextBox x:Name="AddTutorialVenueBox" Height="30" Padding="8,5" FontSize="11"
+                            <TextBox x:Name="AddTutorialVenueBox" Height="40" Padding="10,6" FontSize="13"
+                                     VerticalContentAlignment="Center"
                                      Background="{StaticResource SurfaceBackgroundBrush}" BorderThickness="1"
                                      ToolTip="Tutorial venue" KeyDown="SubjectNameBox_KeyDown" />
                         </StackPanel>
@@ -190,11 +205,13 @@
                         <StackPanel>
                             <TextBlock Text="Practical" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6" />
                             <TextBlock Text="Professor" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
-                            <TextBox x:Name="AddPracticalProfessorBox" Height="30" Padding="8,5" FontSize="11"
+                            <TextBox x:Name="AddPracticalProfessorBox" Height="40" Padding="10,6" FontSize="13"
+                                     VerticalContentAlignment="Center"
                                      Background="{StaticResource SurfaceBackgroundBrush}" BorderThickness="1"
                                      ToolTip="Practical professor" KeyDown="SubjectNameBox_KeyDown" />
                             <TextBlock Text="Venue" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,5,0,0" />
-                            <TextBox x:Name="AddPracticalVenueBox" Height="30" Padding="8,5" FontSize="11"
+                            <TextBox x:Name="AddPracticalVenueBox" Height="40" Padding="10,6" FontSize="13"
+                                     VerticalContentAlignment="Center"
                                      Background="{StaticResource SurfaceBackgroundBrush}" BorderThickness="1"
                                      ToolTip="Practical venue" KeyDown="SubjectNameBox_KeyDown" />
                         </StackPanel>
@@ -211,7 +228,9 @@
         </StackPanel>
 
         <Grid Grid.Row="3">
-            <ItemsControl x:Name="SubjectsList" ItemTemplate="{StaticResource SubjectTemplate}" />
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl x:Name="SubjectsList" ItemTemplate="{StaticResource SubjectTemplate}" />
+            </ScrollViewer>
             <TextBlock x:Name="EmptyStateText" Text="No subjects here yet. Add one above to get started."
                        Foreground="{StaticResource SecondaryTextBrush}" FontSize="14"
                        HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0"

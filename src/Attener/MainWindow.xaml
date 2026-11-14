@@ -143,5 +143,21 @@
                 <views:SettingsView x:Name="SettingsPage" Visibility="Collapsed" />
             </Grid>
         </Border>
+
+        <Grid x:Name="DialogOverlay" Grid.RowSpan="2" Grid.ColumnSpan="2"
+              Panel.ZIndex="100" Visibility="Collapsed"
+              Background="#99000000" FocusManager.IsFocusScope="True"
+              KeyboardNavigation.TabNavigation="Cycle"
+              PreviewKeyDown="DialogOverlay_PreviewKeyDown">
+            <Border x:Name="DialogFrame" Background="{StaticResource SurfaceBackgroundBrush}"
+                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Focusable="True" MaxWidth="600"
+                    MaxHeight="{Binding ActualHeight, ElementName=DialogOverlay}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <ContentPresenter x:Name="DialogContent" />
+                </ScrollViewer>
+            </Border>
+        </Grid>
     </Grid>
 </Window>
