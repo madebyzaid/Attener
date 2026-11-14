@@ -72,7 +72,7 @@ public partial class TimetableView : UserControl
     private void LoadHistory(DateOnly? keepDate = null)
     {
         var today = Today;
-        var history = _timetable.GetHistory();
+        var history = _timetable.GetHistoryWithSemesterGap(_semester.GetSemesterStartDate());
         var current = history.FirstOrDefault(period => period.Start <= today && (period.End is null || period.End > today));
 
         var choices = new List<HistoryChoice>

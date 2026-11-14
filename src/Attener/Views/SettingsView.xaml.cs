@@ -156,12 +156,35 @@ public partial class SettingsView : UserControl
 
         var subjects = new[]
         {
-            (Name: "AM101", Types: new[] { SubjectType.Lecture, SubjectType.Tutorial }),
-            (Name: "ME105", Types: new[] { SubjectType.Lecture, SubjectType.Practical }),
-            (Name: "CO101", Types: new[] { SubjectType.Lecture, SubjectType.Practical }),
-            (Name: "EC101", Types: new[] { SubjectType.Lecture, SubjectType.Practical }),
-            (Name: "CS103", Types: new[] { SubjectType.Lecture, SubjectType.Practical }),
-            (Name: "AEC18", Types: new[] { SubjectType.Lecture })
+            (Name: "AM101", Classes: new[]
+            {
+                (Type: SubjectType.Lecture, Professor: "Aman Gupta", Venue: "AB-215"),
+                (Type: SubjectType.Tutorial, Professor: "Neha Rao", Venue: "AB-006")
+            }),
+            (Name: "ME105", Classes: new[]
+            {
+                (Type: SubjectType.Lecture, Professor: "Rohan Kapoor", Venue: "ME-LW2FF8"),
+                (Type: SubjectType.Practical, Professor: "Kavita Das", Venue: "ME-LW2TF8")
+            }),
+            (Name: "CO101", Classes: new[]
+            {
+                (Type: SubjectType.Lecture, Professor: "Arun Nair", Venue: "PB-FF5"),
+                (Type: SubjectType.Practical, Professor: "Maya Singh", Venue: "PB-GF8")
+            }),
+            (Name: "EC101", Classes: new[]
+            {
+                (Type: SubjectType.Lecture, Professor: "Priya Menon", Venue: "EC-LW2FF8"),
+                (Type: SubjectType.Practical, Professor: "Vikas Rao", Venue: "EC-LW6TF8")
+            }),
+            (Name: "CS103", Classes: new[]
+            {
+                (Type: SubjectType.Lecture, Professor: "Isha Verma", Venue: "AB-283"),
+                (Type: SubjectType.Practical, Professor: "Nitin Das", Venue: "EC-LW3SF7")
+            }),
+            (Name: "AEC18", Classes: new[]
+            {
+                (Type: SubjectType.Lecture, Professor: "Sara Khan", Venue: "AB-006")
+            })
         };
 
         var subjectIdByName = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
@@ -181,6 +204,20 @@ public partial class SettingsView : UserControl
             setting.CommandText = "INSERT INTO AppSettings (Key, Value) VALUES ('SemesterStartDate', $value);";
             setting.Parameters.AddWithValue("$value", semesterStart.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
             setting.ExecuteNonQuery();
+        }
+
+        foreach (var periodStart in new[] { "2026-08-03", "2026-09-01", "2026-10-01", "2026-11-01" })
+        {
+            using var hourSettings = connection.CreateCommand();
+            hourSettings.Transaction = transaction;
+            hourSettings.CommandText = """
+                INSERT INTO AppSettings (Key, Value) VALUES
+                    ($startKey, '8'),
+                    ($endKey, '17');
+                """;
+            hourSettings.Parameters.AddWithValue("$startKey", $"TimetableStartHour:{periodStart}");
+            hourSettings.Parameters.AddWithValue("$endKey", $"TimetableEndHour:{periodStart}");
+            hourSettings.ExecuteNonQuery();
         }
 
         foreach (var subjectInfo in subjects)
@@ -204,19 +241,24 @@ public partial class SettingsView : UserControl
             var subjectId = Convert.ToInt64(lastId);
             subjectIdByName[subjectInfo.Name] = subjectId;
 
-            foreach (var type in subjectInfo.Types)
+            foreach (var classDetails in subjectInfo.Classes)
             {
                 using var insertType = connection.CreateCommand();
                 insertType.Transaction = transaction;
-                insertType.CommandText = "INSERT INTO SubjectClassTypes (SubjectId, Type) VALUES ($subjectId, $type);";
+                insertType.CommandText = """
+                    INSERT INTO SubjectClassTypes (SubjectId, Type, Professor, Venue)
+                    VALUES ($subjectId, $type, $professor, $venue);
+                    """;
                 insertType.Parameters.AddWithValue("$subjectId", subjectId);
-                insertType.Parameters.AddWithValue("$type", type.ToString());
+                insertType.Parameters.AddWithValue("$type", classDetails.Type.ToString());
+                insertType.Parameters.AddWithValue("$professor", classDetails.Professor);
+                insertType.Parameters.AddWithValue("$venue", classDetails.Venue);
                 insertType.ExecuteNonQuery();
             }
         }
 
         // Four different weekly timetables, one per month. DayOfWeek: 0 = Sunday, 1 = Monday ... 6 = Saturday.
-        // Every subject appears in every month; every class falls between 08:00 and 18:00.
+        // Every subject appears in every month; every class falls between 08:00 and 17:00.
         // EffectiveTo is the first day of the next timetable (exclusive); the last one has no end.
         var weeklySessions = new[]
         {

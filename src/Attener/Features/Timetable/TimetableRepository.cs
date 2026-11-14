@@ -94,6 +94,27 @@ public sealed class TimetableRepository
         return periods.Where(item => item.Signature.Length > 0).Select(item => item.Period).ToList();
     }
 
+    // The timetable history, plus an EMPTY period at the front when the semester started before the
+    // first real timetable (for example semester start 3 Aug, first timetable created 14 Nov gives
+    // the period 3 Aug to 13 Nov). This period is worked out here and never saved in the database.
+    // Once a class is added to it, it becomes a real period in GetHistory() and this stops adding it.
+    public IReadOnlyList<TimetablePeriod> GetHistoryWithSemesterGap(DateOnly? semesterStart)
+    {
+        var history = GetHistory();
+        if (semesterStart is null)
+            return history;
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        // The gap ends where the first real timetable begins (or today, if there is none yet).
+        var gapEnd = history.Count > 0 ? history[0].Start : today;
+        if (semesterStart.Value > today || semesterStart.Value >= gapEnd)
+            return history;
+
+        var result = new List<TimetablePeriod> { new TimetablePeriod(semesterStart.Value, gapEnd) };
+        result.AddRange(history);
+        return result;
+    }
+
     // A text fingerprint of the classes in force on this date, used to compare two timetables.
     private static string ReadSignature(SqliteConnection connection, string date)
     {
