@@ -1,6 +1,8 @@
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Threading;
 
 namespace Attener;
@@ -11,7 +13,32 @@ public partial class MainWindow : Window
     private DispatcherFrame? _activeDialogFrame;
     private bool? _activeDialogResult;
 
-    public MainWindow() => InitializeComponent();
+    public MainWindow()
+    {
+        InitializeComponent();
+        SourceInitialized += MainWindow_SourceInitialized;
+    }
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
+
+    private void MainWindow_SourceInitialized(object? sender, EventArgs e)
+    {
+        try
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            var darkMode = 1;
+            var captionColor = 0x001B1917;
+            var textColor = 0x00ECE9E6;
+
+            _ = DwmSetWindowAttribute(hwnd, 20, ref darkMode, sizeof(int));
+            _ = DwmSetWindowAttribute(hwnd, 35, ref captionColor, sizeof(int));
+            _ = DwmSetWindowAttribute(hwnd, 36, ref textColor, sizeof(int));
+        }
+        catch
+        {
+        }
+    }
 
     public void ShowAddAttendanceEntry(DateTime date, bool lockDate) => AttendancePage.AddManualForDate(date, lockDate);
 

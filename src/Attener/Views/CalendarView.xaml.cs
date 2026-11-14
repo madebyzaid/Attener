@@ -24,15 +24,42 @@ public partial class CalendarView : UserControl
         LoadSubjectFilters(null);
         LoadDayColors();
         MonthCalendar.SelectedDate = DateTime.Today;
+        UpdateSemesterBlackoutDates();
         LoadSelectedDate();
     }
 
     public void RefreshData()
     {
         var selectedSubjectId = (SubjectFilter.SelectedItem as CalendarSubjectFilter)?.SubjectId;
+        UpdateSemesterBlackoutDates();
         LoadSubjectFilters(selectedSubjectId);
         LoadDayColors();
         LoadSelectedDate();
+    }
+
+    private void UpdateSemesterBlackoutDates()
+    {
+        MonthCalendar.BlackoutDates.Clear();
+        var semesterStart = _settings.GetSemesterStartDate();
+        if (semesterStart is null)
+            return;
+
+        var semesterStartDate = semesterStart.Value.ToDateTime(TimeOnly.MinValue);
+        var selectedDate = MonthCalendar.SelectedDate ?? DateTime.Today;
+        if (selectedDate.Date < semesterStartDate)
+            selectedDate = DateTime.Today < semesterStartDate ? semesterStartDate : DateTime.Today;
+        MonthCalendar.SelectedDate = selectedDate;
+
+        if (semesterStartDate == DateTime.MinValue)
+            return;
+
+        var blackoutStart = new DateTime(2000, 1, 1);
+        if (semesterStartDate < blackoutStart)
+            blackoutStart = DateTime.MinValue;
+
+        var blackoutEnd = semesterStartDate.AddDays(-1);
+        if (blackoutEnd >= blackoutStart)
+            MonthCalendar.BlackoutDates.Add(new CalendarDateRange(blackoutStart, blackoutEnd));
     }
 
     private void LoadSubjectFilters(long? selectedSubjectId)
@@ -95,7 +122,7 @@ public partial class CalendarView : UserControl
                     : entry.ScheduledStart is null || entry.ScheduledEnd is null
                         ? "Time unavailable"
                         : $"{entry.ScheduledStart}–{entry.ScheduledEnd}",
-                entry.IsManual || date > today || (semesterStart is not null && date >= semesterStart.Value)))
+                date > today || (semesterStart is not null && date >= semesterStart.Value)))
             .OrderBy(row => row.TimeRange).ToArray();
 
         SessionsList.ItemsSource = rows;
@@ -109,6 +136,19 @@ public partial class CalendarView : UserControl
     private void SetStatus(object sender, AttendanceStatus clicked)
     {
         if (sender is not FrameworkElement { DataContext: CalendarSessionRow row }) return;
+
+        if (row.Entry.IsManual && row.SelectedStatus == clicked)
+        {
+            var answer = InAppDialogService.Show(this,
+                $"Delete this {row.Entry.SubjectName} entry for {row.Entry.AttendanceDate:dd MMM yyyy}? This cannot be undone.",
+                "Delete entry", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
+            if (answer != MessageBoxResult.Yes) return;
+
+            _attendance.DeleteManualEntry(row.Entry.Id);
+            RefreshAttendanceViews();
+            return;
+        }
+
         _attendance.SaveAttendance(row.Entry,
             row.SelectedStatus == clicked ? AttendanceStatus.NotMarked : clicked);
         RefreshAttendanceViews();

@@ -59,105 +59,96 @@
         </Style>
     </Window.Resources>
 
-    <Grid Background="{StaticResource WindowBackgroundBrush}">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="42" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="204" />
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
+    <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0">
+        <Grid Background="{StaticResource WindowBackgroundBrush}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="204" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
 
-        <Border Grid.Row="0" Grid.ColumnSpan="2" Background="{StaticResource SidebarBackgroundBrush}"
-                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
-            <TextBlock Text="ATTENER  —  ATTENDANCE TRACKER" FontSize="12" FontWeight="SemiBold"
-                       Foreground="{StaticResource SecondaryTextBrush}"
-                       HorizontalAlignment="Center" VerticalAlignment="Center" />
-        </Border>
+            <Border Grid.Column="0" Background="{StaticResource SidebarBackgroundBrush}"
+                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
+                <DockPanel Margin="12,18,12,14" LastChildFill="True">
+                    <StackPanel DockPanel.Dock="Top" Margin="8,0,0,26">
+                        <TextBlock Text="ATTENER" FontSize="18" FontWeight="SemiBold" />
+                        <TextBlock Text="Your semester, clearly tracked" Foreground="{StaticResource SecondaryTextBrush}"
+                                   FontSize="11" Margin="0,4,0,0" />
+                    </StackPanel>
 
-        <Border Grid.Row="1" Grid.Column="0" Background="{StaticResource SidebarBackgroundBrush}"
-                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
-            <DockPanel Margin="12,18,12,14" LastChildFill="True">
-                <StackPanel DockPanel.Dock="Top" Margin="8,0,0,26">
-                    <TextBlock Text="ATTENER" FontSize="18" FontWeight="SemiBold" />
-                    <TextBlock Text="Your semester, clearly tracked" Foreground="{StaticResource SecondaryTextBrush}"
-                               FontSize="11" Margin="0,4,0,0" />
-                </StackPanel>
+                    <StackPanel DockPanel.Dock="Bottom">
+                        <Border Height="1" Background="{StaticResource BorderBrush}" Margin="8,0,8,10" />
+                        <RadioButton Tag="Settings" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE713;" />
+                                <TextBlock Style="{StaticResource NavLabelStyle}" Text="Settings" />
+                            </StackPanel>
+                        </RadioButton>
+                    </StackPanel>
 
-                <StackPanel DockPanel.Dock="Bottom">
-                    <Border Height="1" Background="{StaticResource BorderBrush}" Margin="8,0,8,10" />
-                    <RadioButton Tag="Settings" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE713;" />
-                            <TextBlock Style="{StaticResource NavLabelStyle}" Text="Settings" />
-                        </StackPanel>
-                    </RadioButton>
-                </StackPanel>
-
-                <StackPanel>
-                    <TextBlock Text="WORKSPACE" Foreground="{StaticResource SecondaryTextBrush}"
-                               FontSize="10" FontWeight="SemiBold" Margin="12,0,0,8" />
-                    <RadioButton Tag="Attendance" IsChecked="True" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE73A;" />
-                            <TextBlock Style="{StaticResource NavLabelStyle}" Text="Attendance" />
-                        </StackPanel>
-                    </RadioButton>
-                    <RadioButton Tag="Statistics" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE9D9;" />
-                            <TextBlock Style="{StaticResource NavLabelStyle}" Text="Statistics" />
-                        </StackPanel>
-                    </RadioButton>
-                    <RadioButton Tag="Timetable" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE121;" />
-                            <TextBlock Style="{StaticResource NavLabelStyle}" Text="Timetable" />
-                        </StackPanel>
-                    </RadioButton>
-                    <RadioButton Tag="Calendar" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE787;" />
-                            <TextBlock Style="{StaticResource NavLabelStyle}" Text="Calendar" />
-                        </StackPanel>
-                    </RadioButton>
-                    <RadioButton Tag="Subjects" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE8F1;" />
-                            <TextBlock Style="{StaticResource NavLabelStyle}" Text="Subjects" />
-                        </StackPanel>
-                    </RadioButton>
-                </StackPanel>
-            </DockPanel>
-        </Border>
-
-        <Border Grid.Row="1" Grid.Column="1" Background="{StaticResource WindowBackgroundBrush}"
-                Padding="26,22,26,20">
-            <Grid>
-                <views:AttendanceView x:Name="AttendancePage" />
-                <views:StatisticsView x:Name="StatisticsPage" Visibility="Collapsed" />
-                <views:TimetableView x:Name="TimetablePage" Visibility="Collapsed" />
-                <views:CalendarView x:Name="CalendarPage" Visibility="Collapsed" />
-                <views:SubjectsView x:Name="SubjectsPage" Visibility="Collapsed" />
-                <views:SettingsView x:Name="SettingsPage" Visibility="Collapsed" />
-            </Grid>
-        </Border>
-
-        <Grid x:Name="DialogOverlay" Grid.RowSpan="2" Grid.ColumnSpan="2"
-              Panel.ZIndex="100" Visibility="Collapsed"
-              Background="#99000000" FocusManager.IsFocusScope="True"
-              KeyboardNavigation.TabNavigation="Cycle"
-              PreviewKeyDown="DialogOverlay_PreviewKeyDown">
-            <Border x:Name="DialogFrame" Background="{StaticResource SurfaceBackgroundBrush}"
-                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10"
-                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                    Focusable="True" MaxWidth="600"
-                    MaxHeight="{Binding ActualHeight, ElementName=DialogOverlay}">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <ContentPresenter x:Name="DialogContent" />
-                </ScrollViewer>
+                    <StackPanel>
+                        <TextBlock Text="WORKSPACE" Foreground="{StaticResource SecondaryTextBrush}"
+                                   FontSize="10" FontWeight="SemiBold" Margin="12,0,0,8" />
+                        <RadioButton Tag="Attendance" IsChecked="True" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE73A;" />
+                                <TextBlock Style="{StaticResource NavLabelStyle}" Text="Attendance" />
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton Tag="Statistics" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE9D9;" />
+                                <TextBlock Style="{StaticResource NavLabelStyle}" Text="Statistics" />
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton Tag="Timetable" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE121;" />
+                                <TextBlock Style="{StaticResource NavLabelStyle}" Text="Timetable" />
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton Tag="Calendar" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE787;" />
+                                <TextBlock Style="{StaticResource NavLabelStyle}" Text="Calendar" />
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton Tag="Subjects" Click="Navigate_Click" Style="{StaticResource NavPillStyle}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE8F1;" />
+                                <TextBlock Style="{StaticResource NavLabelStyle}" Text="Subjects" />
+                            </StackPanel>
+                        </RadioButton>
+                    </StackPanel>
+                </DockPanel>
             </Border>
+
+            <Border Grid.Column="1" Background="{StaticResource WindowBackgroundBrush}"
+                    Padding="26,22,26,20">
+                <Grid>
+                    <views:AttendanceView x:Name="AttendancePage" />
+                    <views:StatisticsView x:Name="StatisticsPage" Visibility="Collapsed" />
+                    <views:TimetableView x:Name="TimetablePage" Visibility="Collapsed" />
+                    <views:CalendarView x:Name="CalendarPage" Visibility="Collapsed" />
+                    <views:SubjectsView x:Name="SubjectsPage" Visibility="Collapsed" />
+                    <views:SettingsView x:Name="SettingsPage" Visibility="Collapsed" />
+                </Grid>
+            </Border>
+
+            <Grid x:Name="DialogOverlay" Grid.ColumnSpan="2"
+                  Panel.ZIndex="100" Visibility="Collapsed"
+                  Background="#99000000" FocusManager.IsFocusScope="True"
+                  KeyboardNavigation.TabNavigation="Cycle"
+                  PreviewKeyDown="DialogOverlay_PreviewKeyDown">
+                <Border x:Name="DialogFrame" Background="{StaticResource SurfaceBackgroundBrush}"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Focusable="True" MaxWidth="600"
+                        MaxHeight="{Binding ActualHeight, ElementName=DialogOverlay}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <ContentPresenter x:Name="DialogContent" />
+                    </ScrollViewer>
+                </Border>
+            </Grid>
         </Grid>
-    </Grid>
+    </Border>
 </Window>

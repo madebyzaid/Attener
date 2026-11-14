@@ -99,6 +99,19 @@ public partial class AttendanceView : UserControl
         if (sender is not FrameworkElement { DataContext: AttendanceRow row })
             return;
 
+        if (row.Entry.IsManual && row.SelectedStatus == clicked)
+        {
+            var answer = InAppDialogService.Show(this,
+                $"Delete this {row.Entry.SubjectName} entry for {row.Entry.AttendanceDate:dd MMM yyyy}? This cannot be undone.",
+                "Delete entry", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
+            if (answer != MessageBoxResult.Yes)
+                return;
+
+            _attendance.DeleteManualEntry(row.Entry.Id);
+            LoadAttendance();
+            return;
+        }
+
         var newStatus = row.SelectedStatus == clicked ? AttendanceStatus.NotMarked : clicked;
         _attendance.SaveAttendance(row.Entry, newStatus);
         LoadAttendance();
@@ -124,6 +137,19 @@ public partial class AttendanceView : UserControl
 
     public void AddManualForDate(DateTime? initialDate = null, bool lockDate = false)
     {
+        var semesterStart = _settings.GetSemesterStartDate();
+        if (semesterStart is null)
+        {
+            InAppDialogService.Show(this, "Choose a semester start date in Settings first.",
+                "Semester start required", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var semesterStartDate = semesterStart.Value.ToDateTime(TimeOnly.MinValue);
+        var selectedDate = initialDate ?? DateTime.Today;
+        if (selectedDate.Date < semesterStartDate)
+            selectedDate = semesterStartDate;
+
         var choices = _subjects.GetSubjects(includeArchived: false)
             .Concat(_subjects.GetSubjects(includeArchived: true))
             .SelectMany(subject => subject.Types.Select(type => new SubjectChoice(
@@ -142,7 +168,8 @@ public partial class AttendanceView : UserControl
         var dateBox = new DatePicker
         {
             Height = 38,
-            SelectedDate = initialDate ?? DateTime.Today,
+            DisplayDateStart = semesterStartDate,
+            SelectedDate = selectedDate,
             IsEnabled = !lockDate,
             Margin = new Thickness(0, 6, 0, 14)
         };
@@ -212,6 +239,14 @@ public partial class AttendanceView : UserControl
             {
                 InAppDialogService.Show(this, "Choose a date.", "Date required",
                     MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (dateBox.SelectedDate.Value.Date < semesterStartDate)
+            {
+                InAppDialogService.Show(this,
+                    $"Choose a date on or after the semester start, {semesterStartDate:dd MMM yyyy}.",
+                    "Date before semester start", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
