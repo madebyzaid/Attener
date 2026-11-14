@@ -15,7 +15,7 @@ public partial class AttendanceView : UserControl
     // Left text padding inside the Add entry dialog, tuned so the Date and Duration text line up
     // with the Subject and Status text. If the dialog looks misaligned, change these two numbers.
     private const double DateTextPaddingLeft = 4.5;
-    private const double DurationTextPaddingLeft = 7.5;
+    private const double DurationTextPaddingLeft = 15;
 
     private readonly AttendanceRepository _attendance = new(DatabaseLocation.GetPath());
     private readonly SemesterSettingsRepository _settings = new(DatabaseLocation.GetPath());
