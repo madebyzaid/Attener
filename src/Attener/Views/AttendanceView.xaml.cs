@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -21,124 +20,17 @@ public partial class AttendanceView : UserControl
     private readonly AttendanceRepository _attendance = new(DatabaseLocation.GetPath());
     private readonly SemesterSettingsRepository _settings = new(DatabaseLocation.GetPath());
     private readonly SubjectRepository _subjects = new(DatabaseLocation.GetPath());
-    private long? _selectedSubjectId;
-    private SubjectType? _selectedType;
-    private bool _loadingSubjectFilters;
-    private bool _selectingTypeFilter;
 
     public AttendanceView()
     {
         InitializeComponent();
         DataContext = this;
-        LoadSubjectFilters();
         LoadAttendance();
     }
 
     public void RefreshData()
     {
-        LoadSubjectFilters();
         LoadAttendance();
-    }
-
-    private void LoadSubjectFilters()
-    {
-        _loadingSubjectFilters = true;
-        try
-        {
-            var subjects = _subjects.GetSubjects(includeArchived: false)
-                .Concat(_subjects.GetSubjects(includeArchived: true))
-                .ToArray();
-            if (_selectedSubjectId is not null && subjects.All(subject => subject.Id != _selectedSubjectId))
-            {
-                _selectedSubjectId = null;
-                _selectedType = null;
-            }
-
-            var filters = new List<AttendanceSubjectFilter>
-            {
-                new(null, "All subjects", [], null)
-            };
-            filters.AddRange(subjects.Select(subject =>
-            {
-                var label = subject.Name + (subject.IsArchived ? " · Archived" : "");
-                var badges = subject.Types.Select(type => new AttendanceTypeFilter(
-                    subject.Id, type, _selectedSubjectId == subject.Id && _selectedType == type)).ToArray();
-                var selectedType = _selectedSubjectId == subject.Id ? _selectedType : null;
-                return new AttendanceSubjectFilter(subject.Id, label, badges, selectedType);
-            }));
-
-            SubjectFilter.ItemsSource = filters;
-            SubjectFilter.SelectedValue = _selectedSubjectId;
-            if (_selectedSubjectId is null)
-                SubjectFilter.SelectedIndex = 0;
-        }
-        finally
-        {
-            _loadingSubjectFilters = false;
-        }
-    }
-
-    private static string TypeLetter(SubjectType type) => type switch
-    {
-        SubjectType.Lecture => "L",
-        SubjectType.Tutorial => "T",
-        SubjectType.Practical => "P",
-        _ => throw new ArgumentOutOfRangeException(nameof(type))
-    };
-
-    private void SubjectFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (!IsLoaded || _loadingSubjectFilters || _selectingTypeFilter
-            || SubjectFilter.SelectedItem is not AttendanceSubjectFilter filter)
-            return;
-
-        ApplySubjectFilter(filter.SubjectId, null);
-    }
-
-    private void SubjectNameFilter_MouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
-    {
-        if (sender is not FrameworkElement { Tag: AttendanceSubjectFilter filter }
-            || (_selectedSubjectId == filter.SubjectId && _selectedType is null))
-            return;
-
-        e.Handled = true;
-        ApplySubjectFilter(filter.SubjectId, null);
-    }
-
-    private void SubjectTypeBadge_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not Button { Tag: AttendanceTypeFilter filter })
-            return;
-
-        e.Handled = true;
-        ApplySubjectFilter(filter.SubjectId, filter.Type);
-    }
-
-    private void ApplySubjectFilter(long? subjectId, SubjectType? type)
-    {
-        _selectedSubjectId = subjectId;
-        _selectedType = type;
-        _selectingTypeFilter = true;
-        SubjectFilter.SelectedValue = subjectId;
-        if (subjectId is null)
-            SubjectFilter.SelectedIndex = 0;
-        SubjectFilter.IsDropDownOpen = false;
-        _selectingTypeFilter = false;
-        UpdateSelectedTypeBadges();
-        LoadAttendance();
-    }
-
-    private void UpdateSelectedTypeBadges()
-    {
-        if (SubjectFilter.ItemsSource is not IEnumerable<AttendanceSubjectFilter> filters)
-            return;
-
-        foreach (var filter in filters)
-        {
-            filter.SelectedType = filter.SubjectId == _selectedSubjectId ? _selectedType : null;
-            foreach (var badge in filter.TypeBadges)
-                badge.IsSelected = badge.SubjectId == _selectedSubjectId && badge.Type == _selectedType;
-        }
     }
 
     // The page shows one card per date: today first (all of today's classes, marked or not),
@@ -157,7 +49,6 @@ public partial class AttendanceView : UserControl
             _attendance.GenerateMissingBetween(semesterStart.Value, today);
 
             var todayRows = _attendance.GetAttendanceForDate(today, allowUnmarked: true)
-                .Where(MatchesFilter)
                 .OrderBy(entry => entry.ScheduledStart is null ? 1 : 0)
                 .ThenBy(entry => entry.ScheduledStart, StringComparer.Ordinal)
                 .Select(entry => new AttendanceRow(entry, DescribeTime(entry),
@@ -167,7 +58,6 @@ public partial class AttendanceView : UserControl
 
             cards.AddRange(_attendance.GetPendingAttendance(today)
                 .Where(entry => entry.AttendanceDate < today)
-                .Where(MatchesFilter)
                 .GroupBy(entry => entry.AttendanceDate)
                 .OrderByDescending(group => group.Key)
                 .Select(group => DayCard.ForEarlierDay(group.Key,
@@ -191,10 +81,6 @@ public partial class AttendanceView : UserControl
         CardsScroll.UpdateLayout();
         CardsScroll.ScrollToVerticalOffset(scrollOffset);
     }
-
-    private bool MatchesFilter(AttendanceEntry entry) =>
-        (_selectedSubjectId is null || entry.SubjectId == _selectedSubjectId)
-        && (_selectedType is null || entry.Type == _selectedType);
 
     private static string DescribeTime(AttendanceEntry entry) =>
         entry.IsManual
@@ -408,74 +294,16 @@ public partial class AttendanceView : UserControl
 
     private sealed record SubjectChoice(long Id, SubjectType Type, string SubjectName, bool IsArchived)
     {
-        public string TypeLetter => AttendanceView.TypeLetter(Type);
+        public string TypeLetter => Type switch
+        {
+            SubjectType.Lecture => "L",
+            SubjectType.Tutorial => "T",
+            SubjectType.Practical => "P",
+            _ => throw new ArgumentOutOfRangeException(nameof(Type))
+        };
         public Visibility ArchivedVisibility => IsArchived ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private sealed class AttendanceSubjectFilter : INotifyPropertyChanged
-    {
-        private SubjectType? _selectedType;
-
-        public long? SubjectId { get; }
-        public string Label { get; }
-        public IReadOnlyList<AttendanceTypeFilter> TypeBadges { get; }
-        public string? SelectedTypeLetter => _selectedType is SubjectType type ? TypeLetter(type) : null;
-        public Visibility SelectedTypeVisibility => _selectedType is null ? Visibility.Collapsed : Visibility.Visible;
-
-        public SubjectType? SelectedType
-        {
-            get => _selectedType;
-            set
-            {
-                if (_selectedType == value)
-                    return;
-                _selectedType = value;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedTypeLetter)));
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedTypeVisibility)));
-            }
-        }
-
-        public AttendanceSubjectFilter(long? subjectId, string label,
-            IReadOnlyList<AttendanceTypeFilter> typeBadges, SubjectType? selectedType)
-        {
-            SubjectId = subjectId;
-            Label = label;
-            TypeBadges = typeBadges;
-            _selectedType = selectedType;
-        }
-
-        public override string ToString() => Label;
-        public event PropertyChangedEventHandler? PropertyChanged;
-    }
-
-    private sealed class AttendanceTypeFilter : INotifyPropertyChanged
-    {
-        private bool _isSelected;
-
-        public long SubjectId { get; }
-        public SubjectType Type { get; }
-        public string Letter => TypeLetter(Type);
-        public bool IsSelected
-        {
-            get => _isSelected;
-            set
-            {
-                if (_isSelected == value)
-                    return;
-                _isSelected = value;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
-            }
-        }
-
-        public AttendanceTypeFilter(long subjectId, SubjectType type, bool isSelected)
-        {
-            SubjectId = subjectId;
-            Type = type;
-            _isSelected = isSelected;
-        }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-    }
     private sealed record StatusChoice(AttendanceStatus Status, string Label) { public override string ToString() => Label; }
 
     // One card on the page: a date, a one-line summary, and that date's class rows.

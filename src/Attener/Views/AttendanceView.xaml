@@ -90,69 +90,6 @@
             </Grid>
         </DataTemplate>
 
-        <Style x:Key="SubjectTypeFilterBadgeStyle" TargetType="Button"
-               BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Background" Value="{StaticResource WindowBackgroundBrush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                    <Setter Property="Background" Value="{StaticResource AccentBrush}" />
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
-
-        <Style x:Key="SubjectFilterItemStyle" TargetType="ComboBoxItem"
-               BasedOn="{StaticResource {x:Type ComboBoxItem}}">
-            <Setter Property="Padding" Value="10,2" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ComboBoxItem">
-                        <Border x:Name="ItemBorder" Background="{TemplateBinding Background}"
-                                CornerRadius="8" Margin="0,1">
-                            <Grid Margin="{TemplateBinding Padding}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="{Binding Label}" Tag="{Binding}"
-                                           MouseLeftButtonUp="SubjectNameFilter_MouseLeftButtonUp"
-                                           Cursor="Hand" VerticalAlignment="Center"
-                                           TextTrimming="CharacterEllipsis"
-                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ComboBoxItem}}" />
-                                <ItemsControl Grid.Column="1" ItemsSource="{Binding TypeBadges}"
-                                              VerticalAlignment="Center">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <StackPanel Orientation="Horizontal" />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Button Content="{Binding Letter}" Tag="{Binding}"
-                                                    Click="SubjectTypeBadge_Click" ToolTip="{Binding Type}"
-                                                    Width="24" Height="24" Padding="0" Margin="5,0,0,0"
-                                                    FontSize="13" FontWeight="SemiBold"
-                                                    Style="{StaticResource SubjectTypeFilterBadgeStyle}" />
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </Grid>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource HoverBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource AccentBrush}" />
-                                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
         <!-- One card per date. Today's card keeps the TODAY badge and slightly emphasized title,
              but no accent border so it matches the other day cards. -->
         <DataTemplate x:Key="DayCardTemplate">
@@ -207,11 +144,6 @@
                     Padding="14,7" Background="{StaticResource AccentBrush}" Foreground="{StaticResource PrimaryTextBrush}"
                     FontWeight="SemiBold" BorderThickness="0" Cursor="Hand"
                     ToolTip="Record attendance by hand for any date" />
-            <ComboBox x:Name="SubjectFilter" Width="300" Height="38" Margin="10,0,0,0"
-                      Style="{StaticResource SubjectTypeFilterComboBoxStyle}" SelectedValuePath="SubjectId"
-                      Padding="12,0"
-                      ItemContainerStyle="{StaticResource SubjectFilterItemStyle}"
-                      SelectionChanged="SubjectFilter_SelectionChanged" />
         </StackPanel>
 
         <Grid Grid.Row="2" Margin="0,18,0,0">
