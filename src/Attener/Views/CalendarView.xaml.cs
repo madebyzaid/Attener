@@ -1,13 +1,12 @@
 using System.Globalization;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 using System.Windows.Data;
 using Attener.Domain;
 using Attener.Features.Attendance;
 using Attener.Features.Subjects;
 using Attener.Infrastructure.Dialogs;
-using System.Windows.Media;
 using Attener.Infrastructure.Database;
 
 namespace Attener.Views;
@@ -20,12 +19,13 @@ public partial class CalendarView : UserControl
     private readonly SubjectRepository _subjects = new(DatabaseLocation.GetPath());
     private long? _selectedSubjectId;
     private SubjectType? _selectedType;
-    private string _selectedSubjectLabel = "All subjects";
+    private bool _loadingSubjectFilters;
+    private bool _selectingTypeFilter;
 
     public CalendarView()
     {
         InitializeComponent();
-        UpdateSubjectFilterLabel();
+        LoadSubjectFilters();
         LoadDayColors();
         MonthCalendar.SelectedDate = DateTime.Today;
         UpdateSemesterBlackoutDates();
@@ -35,7 +35,7 @@ public partial class CalendarView : UserControl
     public void RefreshData()
     {
         UpdateSemesterBlackoutDates();
-        UpdateSubjectFilterLabel();
+        LoadSubjectFilters();
         LoadDayColors();
         LoadSelectedDate();
     }
@@ -65,135 +65,42 @@ public partial class CalendarView : UserControl
             MonthCalendar.BlackoutDates.Add(new CalendarDateRange(blackoutStart, blackoutEnd));
     }
 
-    private void UpdateSubjectFilterLabel()
+    private void LoadSubjectFilters()
     {
-        if (_selectedSubjectId is null)
+        _loadingSubjectFilters = true;
+        try
         {
-            _selectedSubjectLabel = "All subjects";
-        }
-        else
-        {
-            var subject = _subjects.GetSubjects(includeArchived: false)
+            var subjects = _subjects.GetSubjects(includeArchived: false)
                 .Concat(_subjects.GetSubjects(includeArchived: true))
-                .FirstOrDefault(candidate => candidate.Id == _selectedSubjectId);
-            if (subject is null)
+                .ToArray();
+            if (_selectedSubjectId is not null && subjects.All(subject => subject.Id != _selectedSubjectId))
             {
                 _selectedSubjectId = null;
                 _selectedType = null;
-                _selectedSubjectLabel = "All subjects";
             }
-            else
+
+            var filters = new List<CalendarSubjectFilter>
             {
-                _selectedSubjectLabel = subject.Name + (subject.IsArchived ? " · Archived" : "");
-                if (_selectedType is SubjectType type)
-                    _selectedSubjectLabel += $" · {TypeLetter(type)}";
-            }
-        }
-
-        SubjectFilterLabel.Text = _selectedSubjectLabel;
-    }
-
-    private void SubjectFilterButton_Click(object sender, RoutedEventArgs e)
-    {
-        SubjectFilterList.Children.Clear();
-        SubjectFilterList.Children.Add(CreateFilterRow("All subjects", null, null, null));
-
-        var subjects = _subjects.GetSubjects(includeArchived: false)
-            .Concat(_subjects.GetSubjects(includeArchived: true));
-        foreach (var subject in subjects)
-        {
-            var label = subject.Name + (subject.IsArchived ? " · Archived" : "");
-            SubjectFilterList.Children.Add(CreateFilterRow(label, subject.Id, null, subject.Types));
-        }
-
-        SubjectFilterPopup.IsOpen = true;
-    }
-
-    private Grid CreateFilterRow(string label, long? subjectId, SubjectType? rowType,
-        IReadOnlyList<SubjectType>? availableTypes)
-    {
-        var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-        var name = new Button
-        {
-            Content = label,
-            HorizontalContentAlignment = HorizontalAlignment.Left,
-            FontSize = 13,
-            FontWeight = FontWeights.SemiBold,
-            Padding = new Thickness(10, 4, 8, 4),
-            Margin = new Thickness(0),
-            BorderThickness = new Thickness(0),
-            Background = Brushes.Transparent,
-            Cursor = Cursors.Hand
-        };
-        name.Click += (_, _) => SelectSubjectFilter(subjectId, rowType, label);
-        row.Children.Add(name);
-
-        if (subjectId is not null && availableTypes is not null)
-        {
-            var badges = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Margin = new Thickness(0, 0, 6, 0),
-                VerticalAlignment = VerticalAlignment.Center
+                new(null, "All subjects", [], null)
             };
-            foreach (var type in availableTypes)
-                badges.Children.Add(CreateTypeBadge(subjectId.Value, label, type));
-            Grid.SetColumn(badges, 1);
-            row.Children.Add(badges);
+            filters.AddRange(subjects.Select(subject =>
+            {
+                var label = subject.Name + (subject.IsArchived ? " · Archived" : "");
+                var badges = subject.Types.Select(type => new CalendarTypeFilter(
+                    subject.Id, type, _selectedSubjectId == subject.Id && _selectedType == type)).ToArray();
+                var selectedType = _selectedSubjectId == subject.Id ? _selectedType : null;
+                return new CalendarSubjectFilter(subject.Id, label, badges, selectedType);
+            }));
+
+            SubjectFilter.ItemsSource = filters;
+            SubjectFilter.SelectedValue = _selectedSubjectId;
+            if (_selectedSubjectId is null)
+                SubjectFilter.SelectedIndex = 0;
         }
-
-        return row;
-    }
-
-    private Button CreateTypeBadge(long subjectId, string subjectLabel, SubjectType type)
-    {
-        var normalBackground = (Brush)FindResource("WindowBackgroundBrush");
-        var selected = _selectedSubjectId == subjectId && _selectedType == type;
-        var selectedBackground = (Brush)FindResource("AccentBrush");
-        var badge = new Button
+        finally
         {
-            Content = TypeLetter(type),
-            ToolTip = type.ToString(),
-            Width = 30,
-            Height = 28,
-            Padding = new Thickness(0),
-            Margin = new Thickness(5, 0, 0, 0),
-            FontSize = 12,
-            FontWeight = FontWeights.SemiBold,
-            Background = selected ? selectedBackground : normalBackground,
-            Foreground = (Brush)FindResource("PrimaryTextBrush"),
-            BorderBrush = (Brush)FindResource("BorderBrush"),
-            BorderThickness = new Thickness(1),
-            Cursor = Cursors.Hand
-        };
-        badge.MouseEnter += (_, _) =>
-        {
-            if (_selectedSubjectId != subjectId || _selectedType != type)
-                badge.Background = (Brush)FindResource("HoverBrush");
-        };
-        badge.MouseLeave += (_, _) =>
-        {
-            badge.Background = _selectedSubjectId == subjectId && _selectedType == type
-                ? selectedBackground : normalBackground;
-        };
-        badge.Click += (_, _) => SelectSubjectFilter(subjectId, type, subjectLabel);
-        return badge;
-    }
-
-    private void SelectSubjectFilter(long? subjectId, SubjectType? type, string label)
-    {
-        _selectedSubjectId = subjectId;
-        _selectedType = type;
-        _selectedSubjectLabel = subjectId is null
-            ? label
-            : label + (type is null ? "" : $" · {TypeLetter(type.Value)}");
-        SubjectFilterLabel.Text = _selectedSubjectLabel;
-        SubjectFilterPopup.IsOpen = false;
-        LoadDayColors();
-        LoadSelectedDate();
+            _loadingSubjectFilters = false;
+        }
     }
 
     private static string TypeLetter(SubjectType type) => type switch
@@ -203,6 +110,62 @@ public partial class CalendarView : UserControl
         SubjectType.Practical => "P",
         _ => throw new ArgumentOutOfRangeException(nameof(type))
     };
+
+    private void SubjectFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!IsLoaded || _loadingSubjectFilters || _selectingTypeFilter
+            || SubjectFilter.SelectedItem is not CalendarSubjectFilter filter)
+            return;
+
+        ApplySubjectFilter(filter.SubjectId, null);
+    }
+
+    private void SubjectNameFilter_MouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: CalendarSubjectFilter filter }
+            || (_selectedSubjectId == filter.SubjectId && _selectedType is null))
+            return;
+
+        e.Handled = true;
+        ApplySubjectFilter(filter.SubjectId, null);
+    }
+
+    private void SubjectTypeBadge_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: CalendarTypeFilter filter })
+            return;
+
+        e.Handled = true;
+        ApplySubjectFilter(filter.SubjectId, filter.Type);
+    }
+
+    private void ApplySubjectFilter(long? subjectId, SubjectType? type)
+    {
+        _selectedSubjectId = subjectId;
+        _selectedType = type;
+        _selectingTypeFilter = true;
+        SubjectFilter.SelectedValue = subjectId;
+        if (subjectId is null)
+            SubjectFilter.SelectedIndex = 0;
+        SubjectFilter.IsDropDownOpen = false;
+        _selectingTypeFilter = false;
+        UpdateSelectedTypeBadges();
+        LoadDayColors();
+        LoadSelectedDate();
+    }
+
+    private void UpdateSelectedTypeBadges()
+    {
+        if (SubjectFilter.ItemsSource is not IEnumerable<CalendarSubjectFilter> filters)
+            return;
+
+        foreach (var filter in filters)
+        {
+            filter.SelectedType = filter.SubjectId == _selectedSubjectId ? _selectedType : null;
+            foreach (var badge in filter.TypeBadges)
+                badge.IsSelected = badge.SubjectId == _selectedSubjectId && badge.Type == _selectedType;
+        }
+    }
 
     // When a subject or class type is chosen, give the calendar its date -> status map.
     // Each day cell reads that map (through the calendar's Tag) and colours itself.
@@ -314,6 +277,71 @@ public partial class CalendarView : UserControl
         public Visibility DeleteVisibility => Entry.IsManual ? Visibility.Visible : Visibility.Collapsed;
         public CalendarSessionRow(AttendanceEntry entry, string timeRange, bool canEdit)
         { Entry = entry; TimeRange = timeRange; CanEdit = canEdit; }
+    }
+
+    private sealed class CalendarSubjectFilter : INotifyPropertyChanged
+    {
+        private SubjectType? _selectedType;
+
+        public long? SubjectId { get; }
+        public string Label { get; }
+        public IReadOnlyList<CalendarTypeFilter> TypeBadges { get; }
+        public string? SelectedTypeLetter => _selectedType is SubjectType type ? TypeLetter(type) : null;
+        public Visibility SelectedTypeVisibility => _selectedType is null ? Visibility.Collapsed : Visibility.Visible;
+
+        public SubjectType? SelectedType
+        {
+            get => _selectedType;
+            set
+            {
+                if (_selectedType == value)
+                    return;
+                _selectedType = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedTypeLetter)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedTypeVisibility)));
+            }
+        }
+
+        public CalendarSubjectFilter(long? subjectId, string label,
+            IReadOnlyList<CalendarTypeFilter> typeBadges, SubjectType? selectedType)
+        {
+            SubjectId = subjectId;
+            Label = label;
+            TypeBadges = typeBadges;
+            _selectedType = selectedType;
+        }
+
+        public override string ToString() => Label;
+        public event PropertyChangedEventHandler? PropertyChanged;
+    }
+
+    private sealed class CalendarTypeFilter : INotifyPropertyChanged
+    {
+        private bool _isSelected;
+
+        public long SubjectId { get; }
+        public SubjectType Type { get; }
+        public string Letter => TypeLetter(Type);
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set
+            {
+                if (_isSelected == value)
+                    return;
+                _isSelected = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+            }
+        }
+
+        public CalendarTypeFilter(long subjectId, SubjectType type, bool isSelected)
+        {
+            SubjectId = subjectId;
+            Type = type;
+            _isSelected = isSelected;
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }
 

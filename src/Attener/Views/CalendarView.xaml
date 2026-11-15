@@ -173,6 +173,69 @@
             </Border>
         </DataTemplate>
 
+        <Style x:Key="SubjectTypeFilterBadgeStyle" TargetType="Button"
+               BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{StaticResource WindowBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="SubjectFilterItemStyle" TargetType="ComboBoxItem"
+               BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+            <Setter Property="Padding" Value="10,2" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="ItemBorder" Background="{TemplateBinding Background}"
+                                CornerRadius="8" Margin="0,1">
+                            <Grid Margin="{TemplateBinding Padding}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding Label}" Tag="{Binding}"
+                                           MouseLeftButtonUp="SubjectNameFilter_MouseLeftButtonUp"
+                                           Cursor="Hand" VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ComboBoxItem}}" />
+                                <ItemsControl Grid.Column="1" ItemsSource="{Binding TypeBadges}"
+                                              VerticalAlignment="Center">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Content="{Binding Letter}" Tag="{Binding}"
+                                                    Click="SubjectTypeBadge_Click" ToolTip="{Binding Type}"
+                                                    Width="24" Height="24" Padding="0" Margin="5,0,0,0"
+                                                    FontSize="13" FontWeight="SemiBold"
+                                                    Style="{StaticResource SubjectTypeFilterBadgeStyle}" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource HoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource AccentBrush}" />
+                                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
     </UserControl.Resources>
 
     <Grid>
@@ -254,31 +317,11 @@
                             FontWeight="SemiBold" BorderThickness="0" Cursor="Hand" />
                 </Grid>
 
-                <Button x:Name="SubjectFilterButton" Grid.Row="1" Height="38" Margin="0,14,0,0"
-                        HorizontalContentAlignment="Stretch" Click="SubjectFilterButton_Click"
-                        Padding="10,0" Cursor="Hand">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock x:Name="SubjectFilterLabel" Text="All subjects" VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis" />
-                        <TextBlock Grid.Column="1" Text="⌄" Foreground="{StaticResource SecondaryTextBrush}"
-                                   VerticalAlignment="Center" Margin="8,0,2,0" />
-                    </Grid>
-                </Button>
-                <Popup x:Name="SubjectFilterPopup" PlacementTarget="{Binding ElementName=SubjectFilterButton}"
-                       Placement="Bottom" VerticalOffset="4" StaysOpen="False" AllowsTransparency="True"
-                       PopupAnimation="Fade">
-                    <Border Background="{StaticResource SurfaceBackgroundBrush}"
-                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                            CornerRadius="8" Padding="4" MinWidth="320">
-                        <ScrollViewer MaxHeight="320" VerticalScrollBarVisibility="Auto">
-                            <StackPanel x:Name="SubjectFilterList" />
-                        </ScrollViewer>
-                    </Border>
-                </Popup>
+                <ComboBox x:Name="SubjectFilter" Grid.Row="1" Height="38" Margin="0,14,0,0"
+                          Style="{StaticResource SubjectTypeFilterComboBoxStyle}" SelectedValuePath="SubjectId"
+                          Padding="12,0"
+                          ItemContainerStyle="{StaticResource SubjectFilterItemStyle}"
+                          SelectionChanged="SubjectFilter_SelectionChanged" />
 
                 <Grid Grid.Row="2" Margin="0,18,0,0">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
