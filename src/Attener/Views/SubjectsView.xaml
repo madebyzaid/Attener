@@ -92,6 +92,22 @@
                             </Style>
                         </Button.Style>
                     </Button>
+                                        <Button Grid.Column="2" Content="Unarchive" Tag="{Binding Id}"
+                            Click="UnarchiveSubject_Click" Height="36" Padding="12,6" Margin="0,0,8,0"
+                            VerticalAlignment="Center"
+                            Foreground="{StaticResource SecondaryTextBrush}"
+                            Background="{StaticResource HoverBrush}" BorderThickness="0" Cursor="Hand">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsArchived}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
                     <Button Grid.Column="3" Content="Delete" Tag="{Binding Id}"
                             Click="DeleteSubject_Click" Height="36" Padding="12,6"
                             VerticalAlignment="Center"

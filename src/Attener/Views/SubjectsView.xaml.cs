@@ -5,12 +5,15 @@ using System.Windows.Media;
 using Attener.Features.Subjects;
 using Attener.Infrastructure.Database;
 using Attener.Infrastructure.Dialogs;
+using Attener.Features.Attendance;
 
 namespace Attener.Views;
 
 public partial class SubjectsView : UserControl
 {
     private readonly SubjectRepository _repository = new(DatabaseLocation.GetPath());
+    private readonly AttendanceRepository _attendance = new(DatabaseLocation.GetPath());
+    private readonly SemesterSettingsRepository _settings = new(DatabaseLocation.GetPath());
     private bool _showArchived;
 
     public SubjectsView()
@@ -344,7 +347,54 @@ public partial class SubjectsView : UserControl
         _repository.ArchiveSubject(subjectId, DateOnly.FromDateTime(DateTime.Today));
         LoadSubjects();
     }
+    // Brings the subject back, recreates its missed classes as Not Marked, and warns about any
+    // hours where its old slots now overlap another subject's class.
+    private void UnarchiveSubject_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: long subjectId, DataContext: SubjectCardViewModel card })
+        {
+            return;
+        }
 
+        var subject = card.Subject;
+        var result = InAppDialogService.Show(this,
+            $"Unarchive {subject.Name}? Its classes return to the timetable, and the classes it missed while archived are recreated as Not Marked.",
+            "Unarchive subject", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (result != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        IReadOnlyList<string> clashes;
+        try
+        {
+            _repository.UnarchiveSubject(subjectId);
+            var semesterStart = _settings.GetSemesterStartDate();
+            if (semesterStart is not null)
+                _attendance.GenerateMissingBetween(semesterStart.Value, today);
+            clashes = _repository.FindUnarchiveClashes(subjectId, today);
+        }
+        catch (Exception ex)
+        {
+            InAppDialogService.Show(this, $"Could not unarchive the subject. {ex.Message}", "Unarchive failed",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+            LoadSubjects();
+            return;
+        }
+
+        LoadSubjects();
+
+        if (clashes.Count > 0)
+        {
+            var shown = string.Join("\n", clashes.Take(8));
+            var more = clashes.Count > 8 ? $"\n...and {clashes.Count - 8} more." : "";
+            InAppDialogService.Show(this,
+                $"{subject.Name} is back, but {clashes.Count} of its classes overlap another subject's class:\n\n{shown}{more}\n\n" +
+                "The timetable grid shows one class per hour, so fix these in Timetable.",
+                "Timetable clash", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
     // Permanently deletes the subject and everything recorded for it. Just one OK click confirms.
     private void DeleteSubject_Click(object sender, RoutedEventArgs e)
     {

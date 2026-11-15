@@ -195,6 +195,57 @@ public sealed class SubjectRepository
         return changed;
     }
 
+        // Brings an archived subject back. Its weekly slots were never removed, so they apply again.
+    public bool UnarchiveSubject(long subjectId)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE Subjects
+            SET IsArchived = 0, ArchivedOn = NULL
+            WHERE Id = $id AND IsArchived = 1;
+            """;
+        command.Parameters.AddWithValue("$id", subjectId);
+        return command.ExecuteNonQuery() == 1;
+    }
+
+    // Weekly classes of this subject that, in the timetable in force on this date, overlap a class of
+    // another active subject. One readable line per clash. Used to warn after unarchiving.
+    public IReadOnlyList<string> FindUnarchiveClashes(long subjectId, DateOnly date)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT mine.DayOfWeek, mine.ClassType, mine.StartTime, mine.EndTime,
+                   other.Name, o.ClassType, o.StartTime, o.EndTime
+            FROM WeeklySessions mine
+            JOIN WeeklySessions o
+              ON o.DayOfWeek = mine.DayOfWeek
+             AND o.SubjectId <> mine.SubjectId
+             AND o.StartTime < mine.EndTime
+             AND mine.StartTime < o.EndTime
+            JOIN Subjects other ON other.Id = o.SubjectId
+            WHERE mine.SubjectId = $id
+              AND mine.EffectiveFrom <= $date AND (mine.EffectiveTo IS NULL OR mine.EffectiveTo > $date)
+              AND o.EffectiveFrom <= $date AND (o.EffectiveTo IS NULL OR o.EffectiveTo > $date)
+              AND other.IsArchived = 0
+            ORDER BY mine.DayOfWeek, mine.StartTime;
+            """;
+        command.Parameters.AddWithValue("$id", subjectId);
+        command.Parameters.AddWithValue("$date", date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+
+        var clashes = new List<string>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            clashes.Add($"{(DayOfWeek)reader.GetInt32(0)}: {reader.GetString(1)} {reader.GetString(2)}–{reader.GetString(3)}" +
+                        $" overlaps {reader.GetString(4)} {reader.GetString(5)} {reader.GetString(6)}–{reader.GetString(7)}");
+        }
+        return clashes;
+    }
+
     // Permanently removes a subject together with its attendance records and timetable entries.
     // The child tables go first because they reference Subjects.
     public bool DeleteSubject(long subjectId)
