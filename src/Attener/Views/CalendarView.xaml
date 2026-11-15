@@ -159,13 +159,13 @@
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button Content="Present" Style="{StaticResource StatusButtonStyle}"
                                 Tag="{StaticResource PresentBrush}"
-                                IsEnabled="{Binding CanEdit}" ClickMode="Press" Click="Present_Click" />
+                                IsEnabled="{Binding CanEdit}" Click="Present_Click" />
                         <Button Content="Absent" Style="{StaticResource StatusButtonStyle}"
                                 Tag="{StaticResource AbsentBrush}"
-                                IsEnabled="{Binding CanEdit}" ClickMode="Press" Click="Absent_Click" />
+                                IsEnabled="{Binding CanEdit}" Click="Absent_Click" />
                         <Button Content="Cancelled" Style="{StaticResource StatusButtonStyle}"
                                 Tag="{StaticResource CancelledBrush}"
-                                IsEnabled="{Binding CanEdit}" ClickMode="Press" Click="Cancelled_Click" />
+                                IsEnabled="{Binding CanEdit}" Click="Cancelled_Click" />
                         <Button Content="Delete" Click="DeleteManual_Click" Visibility="{Binding DeleteVisibility}"
                                 Margin="10,0,0,0" Padding="12,0" Height="38" />
                     </StackPanel>

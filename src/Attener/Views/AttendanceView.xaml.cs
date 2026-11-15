@@ -7,6 +7,7 @@ using Attener.Features.Attendance;
 using Attener.Features.Subjects;
 using Attener.Infrastructure.Database;
 using Attener.Infrastructure.Dialogs;
+using System.Windows.Controls.Primitives;
 
 namespace Attener.Views;
 
@@ -182,6 +183,8 @@ public partial class AttendanceView : UserControl
             IsEnabled = !lockDate,
             Margin = new Thickness(0, 6, 0, 14)
         };
+        dateBox.AddHandler(UIElement.GotMouseCaptureEvent,
+            new System.Windows.Input.MouseEventHandler(ReleaseCalendarCapture));
         // DatePicker has no Padding of its own; the text lives in the template's PART_TextBox.
         // Adjust its padding so the date text lines up with the other fields.
         dateBox.Loaded += (_, _) =>
@@ -287,6 +290,12 @@ public partial class AttendanceView : UserControl
         _attendance.AddManualEntry(chosenSubject.Id, chosenSubject.Type,
             DateOnly.FromDateTime(date), status.Status, minutes);
         LoadAttendance();
+    }
+
+    private static void ReleaseCalendarCapture(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (e.OriginalSource is CalendarDayButton or CalendarItem)
+            ((UIElement)e.OriginalSource).ReleaseMouseCapture();
     }
 
     private static string FormatHours(int minutes) =>

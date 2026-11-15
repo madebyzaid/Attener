@@ -8,6 +8,7 @@ using Attener.Features.Attendance;
 using Attener.Features.Subjects;
 using Attener.Infrastructure.Dialogs;
 using Attener.Infrastructure.Database;
+using System.Windows.Controls.Primitives;
 
 namespace Attener.Views;
 
@@ -25,6 +26,8 @@ public partial class CalendarView : UserControl
     public CalendarView()
     {
         InitializeComponent();
+        MonthCalendar.AddHandler(UIElement.GotMouseCaptureEvent,
+            new System.Windows.Input.MouseEventHandler(ReleaseCalendarCapture));
         LoadSubjectFilters();
         LoadDayColors();
         MonthCalendar.SelectedDate = DateTime.Today;
@@ -175,6 +178,12 @@ public partial class CalendarView : UserControl
             ? null
             : _calendarStatuses.GetStatusesForSubject(_selectedSubjectId.Value, _selectedType);
         LegendPanel.Visibility = _selectedSubjectId is null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private static void ReleaseCalendarCapture(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (e.OriginalSource is CalendarDayButton or CalendarItem)
+            ((UIElement)e.OriginalSource).ReleaseMouseCapture();
     }
 
     private void MonthCalendar_SelectedDatesChanged(object sender, SelectionChangedEventArgs e)
