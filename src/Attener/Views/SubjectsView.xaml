@@ -73,16 +73,13 @@
                         </ItemsControl>
                     </Grid>
                     <Button Grid.Column="1" Content="Edit" Tag="{Binding}" Click="EditSubject_Click"
-                            Height="36" Padding="12,6" Margin="0,0,8,0"
-                            VerticalAlignment="Center" Foreground="{StaticResource SecondaryTextBrush}"
-                            Background="{StaticResource HoverBrush}" BorderThickness="0" Cursor="Hand" />
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Height="36" Margin="0,0,8,0" VerticalAlignment="Center" />
                     <Button Grid.Column="2" Content="Archive" Tag="{Binding Id}"
-                            Click="ArchiveSubject_Click" Height="36" Padding="12,6" Margin="0,0,8,0"
-                            VerticalAlignment="Center"
-                            Foreground="{StaticResource SecondaryTextBrush}"
-                            Background="{StaticResource HoverBrush}" BorderThickness="0" Cursor="Hand">
+                            Click="ArchiveSubject_Click" Height="36" Margin="0,0,8,0"
+                            VerticalAlignment="Center">
                         <Button.Style>
-                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                            <Style TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
                                 <Setter Property="Visibility" Value="Visible" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsArchived}" Value="True">
@@ -92,13 +89,11 @@
                             </Style>
                         </Button.Style>
                     </Button>
-                                        <Button Grid.Column="2" Content="Unarchive" Tag="{Binding Id}"
-                            Click="UnarchiveSubject_Click" Height="36" Padding="12,6" Margin="0,0,8,0"
-                            VerticalAlignment="Center"
-                            Foreground="{StaticResource SecondaryTextBrush}"
-                            Background="{StaticResource HoverBrush}" BorderThickness="0" Cursor="Hand">
+                    <Button Grid.Column="2" Content="Unarchive" Tag="{Binding Id}"
+                            Click="UnarchiveSubject_Click" Height="36" Margin="0,0,8,0"
+                            VerticalAlignment="Center">
                         <Button.Style>
-                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                            <Style TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
                                 <Setter Property="Visibility" Value="Collapsed" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsArchived}" Value="True">
@@ -109,10 +104,8 @@
                         </Button.Style>
                     </Button>
                     <Button Grid.Column="3" Content="Delete" Tag="{Binding Id}"
-                            Click="DeleteSubject_Click" Height="36" Padding="12,6"
-                            VerticalAlignment="Center"
-                            Foreground="{StaticResource SecondaryTextBrush}"
-                            Background="{StaticResource HoverBrush}" BorderThickness="0" Cursor="Hand" />
+                            Click="DeleteSubject_Click" Style="{StaticResource SecondaryButtonStyle}"
+                            Height="36" VerticalAlignment="Center" />
                 </Grid>
             </Border>
         </DataTemplate>
@@ -162,9 +155,8 @@
                                   VerticalAlignment="Center" />
                     </StackPanel>
                 </StackPanel>
-                <Button Grid.Column="2" Content="Add subject" Margin="0,18,0,0" Padding="18,0" Height="36"
-                        Background="{StaticResource AccentBrush}" Foreground="{StaticResource PrimaryTextBrush}"
-                        FontWeight="SemiBold" BorderThickness="0" Cursor="Hand"
+                <Button Grid.Column="2" Content="Add subject" Style="{StaticResource PrimaryButtonStyle}"
+                        Margin="0,18,0,0" Padding="18,0" Height="36"
                         Click="AddSubject_Click" />
                 <WrapPanel Grid.Row="1" Grid.ColumnSpan="3" Margin="0,14,0,0">
                     <Border x:Name="AddLectureDetailsCard" Width="240"
