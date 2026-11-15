@@ -4,10 +4,7 @@
              xmlns:local="clr-namespace:Attener.Views"
              Background="Transparent">
     <UserControl.Resources>
-        <!-- Same colours as the Attendance page buttons. -->
-        <SolidColorBrush x:Key="PresentDayBrush" Color="#007A59" />
-        <SolidColorBrush x:Key="AbsentDayBrush" Color="#F52F63" />
-        <SolidColorBrush x:Key="CancelledDayBrush" Color="#9C5CFF" />
+        <SolidColorBrush x:Key="NotMarkedDayBrush" Color="#343A40" />
 
         <!-- Turns a day's date + the calendar's Tag (date -> status) into a status word. -->
         <local:DayStatusConverter x:Key="DayStatusConverter" />
@@ -38,23 +35,28 @@
                     <ControlTemplate TargetType="CalendarDayButton">
                         <Border x:Name="DayBorder" Background="{TemplateBinding Background}"
                                 BorderBrush="Transparent" BorderThickness="2" CornerRadius="6" Margin="1">
-                            <TextBlock Text="{TemplateBinding Content}"
-                                       Foreground="{TemplateBinding Foreground}"
-                                       FontSize="{TemplateBinding FontSize}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <Grid>
+                                <Border x:Name="HoverOverlay" Background="{StaticResource HoverBrush}"
+                                        Opacity="0.35" CornerRadius="4" Visibility="Collapsed"
+                                        IsHitTestVisible="False" />
+                                <TextBlock Text="{TemplateBinding Content}"
+                                           Foreground="{TemplateBinding Foreground}"
+                                           FontSize="{TemplateBinding FontSize}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
                             <!-- When two triggers set the same thing, the one lower down wins. -->
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="DayBorder" Property="Background" Value="{StaticResource HoverBrush}" />
-                                <Setter TargetName="DayBorder" Property="BorderBrush" Value="{StaticResource MutedBrush}" />
+                                <Setter TargetName="HoverOverlay" Property="Visibility" Value="Visible" />
                             </Trigger>
                             <MultiTrigger>
                                 <MultiTrigger.Conditions>
                                     <Condition Property="IsInactive" Value="False" />
                                     <Condition Property="Tag" Value="Not Marked" />
                                 </MultiTrigger.Conditions>
-                                <Setter TargetName="DayBorder" Property="BorderBrush" Value="{StaticResource MutedBrush}" />
+                                <Setter TargetName="DayBorder" Property="Background" Value="{StaticResource NotMarkedDayBrush}" />
+                                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
                             </MultiTrigger>
                             <Trigger Property="IsToday" Value="True">
                                 <Setter TargetName="DayBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
@@ -62,24 +64,20 @@
                             <Trigger Property="IsInactive" Value="True">
                                 <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
                             </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="DayBorder" Property="Background" Value="{StaticResource AccentBrush}" />
-                                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
-                            </Trigger>
                             <MultiTrigger>
                                 <MultiTrigger.Conditions>
                                     <Condition Property="IsInactive" Value="False" />
                                     <Condition Property="Tag" Value="Present" />
                                 </MultiTrigger.Conditions>
-                                <Setter TargetName="DayBorder" Property="Background" Value="{StaticResource PresentDayBrush}" />
-                                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+                                <Setter TargetName="DayBorder" Property="Background" Value="{StaticResource PresentBrush}" />
+                                <Setter Property="Foreground" Value="{StaticResource PresentTextBrush}" />
                             </MultiTrigger>
                             <MultiTrigger>
                                 <MultiTrigger.Conditions>
                                     <Condition Property="IsInactive" Value="False" />
                                     <Condition Property="Tag" Value="Absent" />
                                 </MultiTrigger.Conditions>
-                                <Setter TargetName="DayBorder" Property="Background" Value="{StaticResource AbsentDayBrush}" />
+                                <Setter TargetName="DayBorder" Property="Background" Value="{StaticResource AbsentBrush}" />
                                 <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
                             </MultiTrigger>
                             <MultiTrigger>
@@ -87,15 +85,21 @@
                                     <Condition Property="IsInactive" Value="False" />
                                     <Condition Property="Tag" Value="Cancelled" />
                                 </MultiTrigger.Conditions>
-                                <Setter TargetName="DayBorder" Property="Background" Value="{StaticResource CancelledDayBrush}" />
+                                <Setter TargetName="DayBorder" Property="Background" Value="{StaticResource CancelledBrush}" />
                                 <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
                             </MultiTrigger>
-                            <!-- The selected day gets a white ring, so it stays visible on a coloured cell. -->
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="DayBorder" Property="BorderBrush" Value="{StaticResource PrimaryTextBrush}" />
-                            </Trigger>
                             <Trigger Property="IsBlackedOut" Value="True">
                                 <Setter Property="Opacity" Value="0.4" />
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True" />
+                                    <Condition Property="IsSelected" Value="False" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="DayBorder" Property="BorderBrush" Value="Transparent" />
+                            </MultiTrigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="DayBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -153,15 +157,15 @@
                                    Visibility="{Binding ManualVisibility}" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <ToggleButton Content="Present" Style="{StaticResource StatusToggleStyle}"
-                                      Tag="{StaticResource PresentBrush}" IsChecked="{Binding IsPresent, Mode=OneWay}"
-                                      IsEnabled="{Binding CanEdit}" Click="Present_Click" />
-                        <ToggleButton Content="Absent" Style="{StaticResource StatusToggleStyle}"
-                                      Tag="{StaticResource AbsentBrush}" IsChecked="{Binding IsAbsent, Mode=OneWay}"
-                                      IsEnabled="{Binding CanEdit}" Click="Absent_Click" />
-                        <ToggleButton Content="Cancelled" Style="{StaticResource StatusToggleStyle}"
-                                      Tag="{StaticResource CancelledBrush}" IsChecked="{Binding IsCancelled, Mode=OneWay}"
-                                      IsEnabled="{Binding CanEdit}" Click="Cancelled_Click" />
+                        <Button Content="Present" Style="{StaticResource StatusButtonStyle}"
+                                Tag="{StaticResource PresentBrush}"
+                                IsEnabled="{Binding CanEdit}" ClickMode="Press" Click="Present_Click" />
+                        <Button Content="Absent" Style="{StaticResource StatusButtonStyle}"
+                                Tag="{StaticResource AbsentBrush}"
+                                IsEnabled="{Binding CanEdit}" ClickMode="Press" Click="Absent_Click" />
+                        <Button Content="Cancelled" Style="{StaticResource StatusButtonStyle}"
+                                Tag="{StaticResource CancelledBrush}"
+                                IsEnabled="{Binding CanEdit}" ClickMode="Press" Click="Cancelled_Click" />
                         <Button Content="Delete" Click="DeleteManual_Click" Visibility="{Binding DeleteVisibility}"
                                 Margin="10,0,0,0" Padding="12,0" Height="38" />
                     </StackPanel>
@@ -210,19 +214,19 @@
                     <StackPanel x:Name="LegendPanel" Grid.Row="1" Orientation="Horizontal"
                                 HorizontalAlignment="Center" Margin="0,12,0,0" Visibility="Collapsed">
                         <Border Width="12" Height="12" CornerRadius="3" VerticalAlignment="Center"
-                                Background="{StaticResource PresentDayBrush}" />
+                                Background="{StaticResource PresentBrush}" />
                         <TextBlock Text="Present" FontSize="12" Margin="6,0,18,0" VerticalAlignment="Center"
                                    Foreground="{StaticResource SecondaryTextBrush}" />
                         <Border Width="12" Height="12" CornerRadius="3" VerticalAlignment="Center"
-                                Background="{StaticResource AbsentDayBrush}" />
+                                Background="{StaticResource AbsentBrush}" />
                         <TextBlock Text="Absent" FontSize="12" Margin="6,0,18,0" VerticalAlignment="Center"
                                    Foreground="{StaticResource SecondaryTextBrush}" />
                         <Border Width="12" Height="12" CornerRadius="3" VerticalAlignment="Center"
-                                Background="{StaticResource CancelledDayBrush}" />
+                                Background="{StaticResource CancelledBrush}" />
                         <TextBlock Text="Cancelled" FontSize="12" Margin="6,0,18,0" VerticalAlignment="Center"
                                    Foreground="{StaticResource SecondaryTextBrush}" />
                         <Border Width="12" Height="12" CornerRadius="3" VerticalAlignment="Center"
-                                BorderBrush="{StaticResource MutedBrush}" BorderThickness="1.5" />
+                                Background="{StaticResource NotMarkedDayBrush}" />
                         <TextBlock Text="Not marked" FontSize="12" Margin="6,0,0,0" VerticalAlignment="Center"
                                    Foreground="{StaticResource SecondaryTextBrush}" />
                     </StackPanel>

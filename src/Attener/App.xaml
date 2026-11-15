@@ -15,13 +15,14 @@
         <SolidColorBrush x:Key="SuccessBrush" Color="#2DD4BF" />
         <SolidColorBrush x:Key="WarningBrush" Color="#D88900" />
         <SolidColorBrush x:Key="DangerBrush" Color="#F52F63" />
-        <SolidColorBrush x:Key="PresentBrush" Color="#007A59" />
+        <SolidColorBrush x:Key="PresentBrush" Color="#4ADE80" />
+        <SolidColorBrush x:Key="PresentTextBrush" Color="#12331F" />
         <SolidColorBrush x:Key="AbsentBrush" Color="#F52F63" />
-        <SolidColorBrush x:Key="CancelledBrush" Color="#9C5CFF" />
+        <SolidColorBrush x:Key="CancelledBrush" Color="#3B82F6" />
         <FontFamily x:Key="AppFontFamily">pack://application:,,,/Assets/Fonts/#Inter</FontFamily>
         <FontFamily x:Key="MonoFontFamily">Consolas</FontFamily>
 
-        <Style x:Key="StatusToggleStyle" TargetType="ToggleButton">
+        <Style x:Key="StatusButtonStyle" TargetType="Button">
             <Setter Property="Foreground" Value="{Binding Tag, RelativeSource={RelativeSource Self}}" />
             <Setter Property="BorderBrush" Value="{Binding Tag, RelativeSource={RelativeSource Self}}" />
             <Setter Property="Background" Value="Transparent" />
@@ -34,28 +35,50 @@
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="ToggleButton">
+                    <ControlTemplate TargetType="Button">
                         <Border x:Name="Chrome" Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1.5" CornerRadius="6">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center">
                                 <ContentPresenter.Resources>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" />
+                                        <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                                     </Style>
                                 </ContentPresenter.Resources>
                             </ContentPresenter>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="Background" Value="{StaticResource HoverBrush}" /></Trigger>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" />
-                                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
-                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource PrimaryTextBrush}" /></Trigger>
                             <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45" /></Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+            <Style.Triggers>
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsPresent}" Value="True" />
+                        <Condition Binding="{Binding Content, RelativeSource={RelativeSource Self}}" Value="Present" />
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Background" Value="{Binding Tag, RelativeSource={RelativeSource Self}}" />
+                    <Setter Property="Foreground" Value="{StaticResource PresentTextBrush}" />
+                </MultiDataTrigger>
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsAbsent}" Value="True" />
+                        <Condition Binding="{Binding Content, RelativeSource={RelativeSource Self}}" Value="Absent" />
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Background" Value="{Binding Tag, RelativeSource={RelativeSource Self}}" />
+                    <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+                </MultiDataTrigger>
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsCancelled}" Value="True" />
+                        <Condition Binding="{Binding Content, RelativeSource={RelativeSource Self}}" Value="Cancelled" />
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Background" Value="{Binding Tag, RelativeSource={RelativeSource Self}}" />
+                    <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+                </MultiDataTrigger>
+            </Style.Triggers>
         </Style>
 
         <Style TargetType="TextBlock">

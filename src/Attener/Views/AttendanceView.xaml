@@ -49,15 +49,15 @@
                                    Foreground="{StaticResource SecondaryTextBrush}" Margin="0,5,0,0" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <ToggleButton Content="Present" Style="{StaticResource StatusToggleStyle}"
+                        <Button Content="Present" Style="{StaticResource StatusButtonStyle}"
                                       Tag="{StaticResource PresentBrush}"
-                                      IsChecked="{Binding IsPresent, Mode=OneWay}" Click="Present_Click" />
-                        <ToggleButton Content="Absent" Style="{StaticResource StatusToggleStyle}"
+                                      Click="Present_Click" />
+                        <Button Content="Absent" Style="{StaticResource StatusButtonStyle}"
                                       Tag="{StaticResource AbsentBrush}"
-                                      IsChecked="{Binding IsAbsent, Mode=OneWay}" Click="Absent_Click" />
-                        <ToggleButton Content="Cancelled" Style="{StaticResource StatusToggleStyle}"
+                                      Click="Absent_Click" />
+                        <Button Content="Cancelled" Style="{StaticResource StatusButtonStyle}"
                                       Tag="{StaticResource CancelledBrush}"
-                                      IsChecked="{Binding IsCancelled, Mode=OneWay}" Click="Cancelled_Click" />
+                                      Click="Cancelled_Click" />
                         <Button Content="Delete" Click="DeleteManual_Click"
                                 Visibility="{Binding DeleteVisibility}"
                                 Margin="14,0,0,0" Padding="14,0" Height="38"
