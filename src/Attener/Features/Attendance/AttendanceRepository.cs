@@ -195,16 +195,11 @@ public sealed class AttendanceRepository
         using var command = connection.CreateCommand();
 
         // A hand-entered record has no start time, so the "same class" rule below cannot find it.
-        // It is changed by its own id instead.
+        // It is changed by its own id instead. Un-marking sets it to Not Marked; it is never deleted here.
         if (entry.IsManual)
         {
-            if (status == AttendanceStatus.NotMarked)
-                command.CommandText = "DELETE FROM AttendanceRecords WHERE Id = $id AND IsManual = 1;";
-            else
-            {
-                command.CommandText = "UPDATE AttendanceRecords SET Status = $status WHERE Id = $id AND IsManual = 1;";
-                command.Parameters.AddWithValue("$status", FormatStatus(status));
-            }
+            command.CommandText = "UPDATE AttendanceRecords SET Status = $status WHERE Id = $id AND IsManual = 1;";
+            command.Parameters.AddWithValue("$status", FormatStatus(status));
             command.Parameters.AddWithValue("$id", entry.Id);
             command.ExecuteNonQuery();
             return;
@@ -243,8 +238,8 @@ public sealed class AttendanceRepository
     {
         if (durationMinutes <= 0)
             throw new ArgumentException("The duration must be more than zero.");
-        if (status == AttendanceStatus.NotMarked || status == AttendanceStatus.NoClass)
-            throw new ArgumentException("Choose Present, Absent or Cancelled.");
+        if (status == AttendanceStatus.NoClass)
+            throw new ArgumentException("Choose Present, Absent, Cancelled or Not Marked.");
 
         using var connection = new SqliteConnection(_connectionString);
         connection.Open();

@@ -97,24 +97,12 @@ public partial class AttendanceView : UserControl
     private void Cancelled_Click(object sender, RoutedEventArgs e) => SetStatus(sender, AttendanceStatus.Cancelled);
 
     // Clicking the status that is already selected un-marks the class (back to Not Marked).
+    // Hand-added entries are un-marked the same way; only their Delete button removes them.
     // Attendance always counts the full scheduled duration, so no duration is saved.
     private void SetStatus(object sender, AttendanceStatus clicked)
     {
         if (sender is not FrameworkElement { DataContext: AttendanceRow row })
             return;
-
-        if (row.Entry.IsManual && row.SelectedStatus == clicked)
-        {
-            var answer = InAppDialogService.Show(this,
-                $"Delete this {row.Entry.SubjectName} entry for {row.Entry.AttendanceDate:dd MMM yyyy}? This cannot be undone.",
-                "Delete entry", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
-            if (answer != MessageBoxResult.Yes)
-                return;
-
-            _attendance.DeleteManualEntry(row.Entry.Id);
-            LoadAttendance();
-            return;
-        }
 
         var newStatus = row.SelectedStatus == clicked ? AttendanceStatus.NotMarked : clicked;
         _attendance.SaveAttendance(row.Entry, newStatus);

@@ -227,23 +227,10 @@ public partial class CalendarView : UserControl
     {
         if (sender is not FrameworkElement { DataContext: CalendarSessionRow row }) return;
 
-        if (row.Entry.IsManual && row.SelectedStatus == clicked)
-        {
-            var answer = InAppDialogService.Show(this,
-                $"Delete this {row.Entry.SubjectName} entry for {row.Entry.AttendanceDate:dd MMM yyyy}? This cannot be undone.",
-                "Delete entry", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
-            if (answer != MessageBoxResult.Yes) return;
-
-            _attendance.DeleteManualEntry(row.Entry.Id);
-            RefreshAttendanceViews();
-            return;
-        }
-
         _attendance.SaveAttendance(row.Entry,
             row.SelectedStatus == clicked ? AttendanceStatus.NotMarked : clicked);
         RefreshAttendanceViews();
     }
-
     private void DeleteManual_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement { DataContext: CalendarSessionRow row } || !row.Entry.IsManual) return;
