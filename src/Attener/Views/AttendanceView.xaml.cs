@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using Attener.Domain;
 using Attener.Features.Attendance;
@@ -20,6 +21,9 @@ public partial class AttendanceView : UserControl
     private readonly AttendanceRepository _attendance = new(DatabaseLocation.GetPath());
     private readonly SemesterSettingsRepository _settings = new(DatabaseLocation.GetPath());
     private readonly SubjectRepository _subjects = new(DatabaseLocation.GetPath());
+    private long? _selectedSubjectId;
+    private SubjectType? _selectedType;
+    private string _selectedSubjectLabel = "All subjects";
 
     public AttendanceView()
     {
@@ -28,7 +32,148 @@ public partial class AttendanceView : UserControl
         LoadAttendance();
     }
 
-    public void RefreshData() => LoadAttendance();
+    public void RefreshData()
+    {
+        UpdateSubjectFilterLabel();
+        LoadAttendance();
+    }
+
+    private void UpdateSubjectFilterLabel()
+    {
+        if (_selectedSubjectId is null)
+        {
+            _selectedSubjectLabel = "All subjects";
+        }
+        else
+        {
+            var subject = _subjects.GetSubjects(includeArchived: false)
+                .Concat(_subjects.GetSubjects(includeArchived: true))
+                .FirstOrDefault(candidate => candidate.Id == _selectedSubjectId);
+            if (subject is null)
+            {
+                _selectedSubjectId = null;
+                _selectedType = null;
+                _selectedSubjectLabel = "All subjects";
+            }
+            else
+            {
+                _selectedSubjectLabel = subject.Name + (subject.IsArchived ? " · Archived" : "");
+                if (_selectedType is SubjectType type)
+                    _selectedSubjectLabel += $" · {TypeLetter(type)}";
+            }
+        }
+
+        SubjectFilterButton.Content = _selectedSubjectLabel;
+    }
+
+    private void SubjectFilterButton_Click(object sender, RoutedEventArgs e)
+    {
+        SubjectFilterList.Children.Clear();
+        SubjectFilterList.Children.Add(CreateFilterRow("All subjects", null, null));
+
+        var subjects = _subjects.GetSubjects(includeArchived: false)
+            .Concat(_subjects.GetSubjects(includeArchived: true));
+        foreach (var subject in subjects)
+        {
+            var label = subject.Name + (subject.IsArchived ? " · Archived" : "");
+            SubjectFilterList.Children.Add(CreateFilterRow(label, subject.Id, subject.Types));
+        }
+
+        SubjectFilterPopup.IsOpen = true;
+    }
+
+    private Grid CreateFilterRow(string label, long? subjectId, IReadOnlyList<SubjectType>? availableTypes)
+    {
+        var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var name = new Button
+        {
+            Content = label,
+            HorizontalContentAlignment = HorizontalAlignment.Left,
+            FontSize = 13,
+            FontWeight = FontWeights.SemiBold,
+            Padding = new Thickness(10, 4, 8, 4),
+            Margin = new Thickness(0),
+            BorderThickness = new Thickness(0),
+            Background = Brushes.Transparent,
+            Cursor = Cursors.Hand
+        };
+        name.Click += (_, _) => SelectSubjectFilter(subjectId, null, label);
+        row.Children.Add(name);
+
+        if (subjectId is not null && availableTypes is not null)
+        {
+            var badges = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 0, 6, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            foreach (var type in availableTypes)
+                badges.Children.Add(CreateTypeBadge(subjectId.Value, label, type));
+            Grid.SetColumn(badges, 1);
+            row.Children.Add(badges);
+        }
+
+        return row;
+    }
+
+    private Button CreateTypeBadge(long subjectId, string subjectLabel, SubjectType type)
+    {
+        var normalBackground = (Brush)FindResource("WindowBackgroundBrush");
+        var selected = _selectedSubjectId == subjectId && _selectedType == type;
+        var selectedBackground = (Brush)FindResource("AccentBrush");
+        var badge = new Button
+        {
+            Content = TypeLetter(type),
+            ToolTip = type.ToString(),
+            Width = 30,
+            Height = 28,
+            Padding = new Thickness(0),
+            Margin = new Thickness(5, 0, 0, 0),
+            FontSize = 12,
+            FontWeight = FontWeights.SemiBold,
+            Background = selected ? selectedBackground : normalBackground,
+            Foreground = (Brush)FindResource("PrimaryTextBrush"),
+            BorderBrush = (Brush)FindResource("BorderBrush"),
+            BorderThickness = new Thickness(1),
+            Cursor = Cursors.Hand
+        };
+        badge.MouseEnter += (_, _) =>
+        {
+            if (_selectedSubjectId != subjectId || _selectedType != type)
+                badge.Background = (Brush)FindResource("HoverBrush");
+        };
+        badge.MouseLeave += (_, _) =>
+        {
+            badge.Background = _selectedSubjectId == subjectId && _selectedType == type
+                ? selectedBackground : normalBackground;
+        };
+        badge.Click += (_, _) => SelectSubjectFilter(subjectId, type, subjectLabel);
+        return badge;
+    }
+
+    private void SelectSubjectFilter(long? subjectId, SubjectType? type, string label)
+    {
+        _selectedSubjectId = subjectId;
+        _selectedType = type;
+        _selectedSubjectLabel = subjectId is null
+            ? label
+            : label + (type is null ? "" : $" · {TypeLetter(type.Value)}");
+        SubjectFilterButton.Content = _selectedSubjectLabel;
+        SubjectFilterPopup.IsOpen = false;
+        LoadAttendance();
+    }
+
+    private static string TypeLetter(SubjectType type) => type switch
+    {
+        SubjectType.Lecture => "L",
+        SubjectType.Tutorial => "T",
+        SubjectType.Practical => "P",
+        _ => throw new ArgumentOutOfRangeException(nameof(type))
+    };
 
     // The page shows one card per date: today first (all of today's classes, marked or not),
     // then every earlier date that still has unmarked classes, newest date first.
@@ -46,6 +191,7 @@ public partial class AttendanceView : UserControl
             _attendance.GenerateMissingBetween(semesterStart.Value, today);
 
             var todayRows = _attendance.GetAttendanceForDate(today, allowUnmarked: true)
+                .Where(MatchesFilter)
                 .OrderBy(entry => entry.ScheduledStart is null ? 1 : 0)
                 .ThenBy(entry => entry.ScheduledStart, StringComparer.Ordinal)
                 .Select(entry => new AttendanceRow(entry, DescribeTime(entry),
@@ -55,6 +201,7 @@ public partial class AttendanceView : UserControl
 
             cards.AddRange(_attendance.GetPendingAttendance(today)
                 .Where(entry => entry.AttendanceDate < today)
+                .Where(MatchesFilter)
                 .GroupBy(entry => entry.AttendanceDate)
                 .OrderByDescending(group => group.Key)
                 .Select(group => DayCard.ForEarlierDay(group.Key,
@@ -78,6 +225,10 @@ public partial class AttendanceView : UserControl
         CardsScroll.UpdateLayout();
         CardsScroll.ScrollToVerticalOffset(scrollOffset);
     }
+
+    private bool MatchesFilter(AttendanceEntry entry) =>
+        (_selectedSubjectId is null || entry.SubjectId == _selectedSubjectId)
+        && (_selectedType is null || entry.Type == _selectedType);
 
     private static string DescribeTime(AttendanceEntry entry) =>
         entry.IsManual
@@ -153,8 +304,7 @@ public partial class AttendanceView : UserControl
         var choices = _subjects.GetSubjects(includeArchived: false)
             .Concat(_subjects.GetSubjects(includeArchived: true))
             .SelectMany(subject => subject.Types.Select(type => new SubjectChoice(
-                subject.Id, type,
-                $"{subject.Name} · {type}{(subject.IsArchived ? " · Archived" : "")}")))
+                subject.Id, type, subject.Name, subject.IsArchived)))
             .ToList();
         if (choices.Count == 0)
         {
@@ -164,7 +314,14 @@ public partial class AttendanceView : UserControl
         }
 
         var secondary = (Brush)FindResource("SecondaryTextBrush");
-        var subjectBox = new ComboBox { Height = 38, ItemsSource = choices, SelectedIndex = 0, Margin = new Thickness(0, 6, 0, 14) };
+        var subjectBox = new ComboBox
+        {
+            Height = 38,
+            ItemsSource = choices,
+            ItemTemplate = (DataTemplate)FindResource("SubjectChoiceTemplate"),
+            SelectedIndex = 0,
+            Margin = new Thickness(0, 6, 0, 14)
+        };
         var dateBox = new DatePicker
         {
             Height = 38,
@@ -283,7 +440,17 @@ public partial class AttendanceView : UserControl
     private static string FormatHours(int minutes) =>
         $"{(minutes / 60m).ToString("0.##", CultureInfo.InvariantCulture)} h";
 
-    private sealed record SubjectChoice(long Id, SubjectType Type, string Label) { public override string ToString() => Label; }
+    private sealed record SubjectChoice(long Id, SubjectType Type, string SubjectName, bool IsArchived)
+    {
+        public string TypeLetter => Type switch
+        {
+            SubjectType.Lecture => "L",
+            SubjectType.Tutorial => "T",
+            SubjectType.Practical => "P",
+            _ => throw new ArgumentOutOfRangeException(nameof(Type))
+        };
+        public Visibility ArchivedVisibility => IsArchived ? Visibility.Visible : Visibility.Collapsed;
+    }
     private sealed record StatusChoice(AttendanceStatus Status, string Label) { public override string ToString() => Label; }
 
     // One card on the page: a date, a one-line summary, and that date's class rows.

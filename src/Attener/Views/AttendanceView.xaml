@@ -68,6 +68,27 @@
             </Border>
         </DataTemplate>
 
+        <DataTemplate x:Key="SubjectChoiceTemplate">
+            <Grid Margin="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding SubjectName}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text=" · Archived" Margin="5,0,0,0"
+                               Foreground="{StaticResource SecondaryTextBrush}"
+                               Visibility="{Binding ArchivedVisibility}" />
+                </StackPanel>
+                <Border Grid.Column="1" Background="{StaticResource HoverBrush}"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                        CornerRadius="4" Padding="5,2" Margin="6,0,0,0" ToolTip="{Binding Type}">
+                    <TextBlock Text="{Binding TypeLetter}" FontSize="10" FontWeight="SemiBold"
+                               Foreground="{StaticResource SecondaryTextBrush}" />
+                </Border>
+            </Grid>
+        </DataTemplate>
+
         <!-- One card per date. Today's card keeps the TODAY badge and slightly emphasized title,
              but no accent border so it matches the other day cards. -->
         <DataTemplate x:Key="DayCardTemplate">
@@ -122,6 +143,19 @@
                     Padding="14,7" Background="{StaticResource AccentBrush}" Foreground="{StaticResource PrimaryTextBrush}"
                     FontWeight="SemiBold" BorderThickness="0" Cursor="Hand"
                     ToolTip="Record attendance by hand for any date" />
+            <Button x:Name="SubjectFilterButton" Content="All subjects" Click="SubjectFilterButton_Click"
+                    Padding="14,7" Margin="10,0,0,0" Cursor="Hand" />
+            <Popup x:Name="SubjectFilterPopup" PlacementTarget="{Binding ElementName=SubjectFilterButton}"
+                   Placement="Bottom" VerticalOffset="4" StaysOpen="False" AllowsTransparency="True"
+                   PopupAnimation="Fade">
+                <Border Background="{StaticResource SurfaceBackgroundBrush}"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                        CornerRadius="8" Padding="4" MinWidth="280">
+                    <ScrollViewer MaxHeight="320" VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="SubjectFilterList" />
+                    </ScrollViewer>
+                </Border>
+            </Popup>
         </StackPanel>
 
         <Grid Grid.Row="2" Margin="0,18,0,0">

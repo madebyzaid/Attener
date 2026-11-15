@@ -1,4 +1,5 @@
 using System.Globalization;
+using Attener.Features.Subjects;
 using Microsoft.Data.Sqlite;
 
 namespace Attener.Features.Attendance;
@@ -19,7 +20,7 @@ public sealed class CalendarStatusRepository
     // One status per date for one subject, used to colour the calendar day.
     // Values are the status words stored in the database: "Present", "Absent", "Cancelled", "Not Marked", "No Class".
     // If the subject has several classes on one day, the most important status wins (see Rank).
-    public Dictionary<DateTime, string> GetStatusesForSubject(long subjectId)
+    public Dictionary<DateTime, string> GetStatusesForSubject(long subjectId, SubjectType? classType = null)
     {
         using var connection = new SqliteConnection(_connectionString);
         connection.Open();
@@ -27,9 +28,11 @@ public sealed class CalendarStatusRepository
         command.CommandText = """
             SELECT AttendanceDate, Status
             FROM AttendanceRecords
-            WHERE SubjectId = $subjectId;
+            WHERE SubjectId = $subjectId
+              AND ($classType IS NULL OR ClassType = $classType);
             """;
         command.Parameters.AddWithValue("$subjectId", subjectId);
+        command.Parameters.AddWithValue("$classType", classType is null ? DBNull.Value : classType.Value.ToString());
 
         var statuses = new Dictionary<DateTime, string>();
         using var reader = command.ExecuteReader();

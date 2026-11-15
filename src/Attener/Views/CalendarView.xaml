@@ -172,6 +172,7 @@
                 </Grid>
             </Border>
         </DataTemplate>
+
     </UserControl.Resources>
 
     <Grid>
@@ -253,9 +254,31 @@
                             FontWeight="SemiBold" BorderThickness="0" Cursor="Hand" />
                 </Grid>
 
-                <ComboBox x:Name="SubjectFilter" Grid.Row="1" Height="38" Margin="0,14,0,0"
-                          DisplayMemberPath="Label" SelectedValuePath="SubjectId"
-                          SelectionChanged="SubjectFilter_SelectionChanged" />
+                <Button x:Name="SubjectFilterButton" Grid.Row="1" Height="38" Margin="0,14,0,0"
+                        HorizontalContentAlignment="Stretch" Click="SubjectFilterButton_Click"
+                        Padding="10,0" Cursor="Hand">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="SubjectFilterLabel" Text="All subjects" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Column="1" Text="⌄" Foreground="{StaticResource SecondaryTextBrush}"
+                                   VerticalAlignment="Center" Margin="8,0,2,0" />
+                    </Grid>
+                </Button>
+                <Popup x:Name="SubjectFilterPopup" PlacementTarget="{Binding ElementName=SubjectFilterButton}"
+                       Placement="Bottom" VerticalOffset="4" StaysOpen="False" AllowsTransparency="True"
+                       PopupAnimation="Fade">
+                    <Border Background="{StaticResource SurfaceBackgroundBrush}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="4" MinWidth="320">
+                        <ScrollViewer MaxHeight="320" VerticalScrollBarVisibility="Auto">
+                            <StackPanel x:Name="SubjectFilterList" />
+                        </ScrollViewer>
+                    </Border>
+                </Popup>
 
                 <Grid Grid.Row="2" Margin="0,18,0,0">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
