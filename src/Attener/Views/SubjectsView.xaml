@@ -52,8 +52,7 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <Grid VerticalAlignment="Center" Cursor="Hand"
-                          MouseLeftButtonUp="SubjectCard_Click">
+                    <Grid VerticalAlignment="Center">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
@@ -64,9 +63,6 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold"
                                    VerticalAlignment="Center" Margin="0,0,12,0" />
-                        <TextBlock Grid.Column="1" Text="{Binding TypeAbbreviations}"
-                                   FontSize="11" Foreground="{StaticResource SecondaryTextBrush}"
-                                   VerticalAlignment="Center" />
                         <ItemsControl Grid.Row="1" Grid.ColumnSpan="2" ItemsSource="{Binding ClassDetails}"
                                       ItemTemplate="{StaticResource SubjectClassDetailTemplate}">
                             <ItemsControl.ItemsPanel>
@@ -74,16 +70,6 @@
                                     <WrapPanel Orientation="Horizontal" />
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
-                            <ItemsControl.Style>
-                                <Style TargetType="ItemsControl">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsExpanded}" Value="True">
-                                            <Setter Property="Visibility" Value="Visible" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </ItemsControl.Style>
                         </ItemsControl>
                     </Grid>
                     <Button Grid.Column="1" Content="Edit" Tag="{Binding}" Click="EditSubject_Click"

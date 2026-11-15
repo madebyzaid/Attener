@@ -1,5 +1,3 @@
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -316,45 +314,15 @@ public partial class SubjectsView : UserControl
         StackPanel Cards,
         IReadOnlyDictionary<SubjectType, TypeEditor> Editors);
 
-    private void SubjectCard_Click(object sender, MouseButtonEventArgs e)
-    {
-        if (sender is Grid { DataContext: SubjectCardViewModel card })
-            card.IsExpanded = !card.IsExpanded;
-    }
-
-    private sealed class SubjectCardViewModel : INotifyPropertyChanged
+    private sealed class SubjectCardViewModel
     {
         public SubjectSummary Subject { get; }
         public long Id => Subject.Id;
         public string Name => Subject.Name;
         public bool IsArchived => Subject.IsArchived;
         public IReadOnlyList<SubjectClassDetails> ClassDetails => Subject.ClassDetails;
-        public string TypeAbbreviations => string.Join(" ", Subject.Types.Select(type => type switch
-        {
-            SubjectType.Lecture => "L",
-            SubjectType.Tutorial => "T",
-            SubjectType.Practical => "P",
-            _ => throw new ArgumentOutOfRangeException(nameof(type))
-        }));
-
-        private bool _isExpanded;
-        public bool IsExpanded
-        {
-            get => _isExpanded;
-            set
-            {
-                if (_isExpanded == value) return;
-                _isExpanded = value;
-                OnPropertyChanged();
-            }
-        }
 
         public SubjectCardViewModel(SubjectSummary subject) => Subject = subject;
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-        private void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 
     private void ArchiveSubject_Click(object sender, RoutedEventArgs e)
