@@ -13,11 +13,6 @@ namespace Attener.Views;
 
 public partial class AttendanceView : UserControl
 {
-    // Left text padding inside the Add entry dialog, tuned so the Date and Duration text line up
-    // with the Subject and Status text. If the dialog looks misaligned, change these two numbers.
-    private const double DateTextPaddingLeft = 4.5;
-    private const double DurationTextPaddingLeft = 15;
-
     private readonly AttendanceRepository _attendance = new(DatabaseLocation.GetPath());
     private readonly SemesterSettingsRepository _settings = new(DatabaseLocation.GetPath());
     private readonly SubjectRepository _subjects = new(DatabaseLocation.GetPath());
@@ -173,13 +168,6 @@ public partial class AttendanceView : UserControl
         };
         dateBox.AddHandler(UIElement.GotMouseCaptureEvent,
             new System.Windows.Input.MouseEventHandler(ReleaseCalendarCapture));
-        // DatePicker has no Padding of its own; the text lives in the template's PART_TextBox.
-        // Adjust its padding so the date text lines up with the other fields.
-        dateBox.Loaded += (_, _) =>
-        {
-            if (dateBox.Template.FindName("PART_TextBox", dateBox) is System.Windows.Controls.Primitives.DatePickerTextBox textBox)
-                textBox.Padding = new Thickness(DateTextPaddingLeft, 0, 0, 0);
-        };
         var statusBox = new ComboBox
         {
             Height = 38,
@@ -192,7 +180,7 @@ public partial class AttendanceView : UserControl
             SelectedIndex = 0,
             Margin = new Thickness(0, 6, 0, 14)
         };
-        var durationBox = new TextBox { Height = 38, Text = "1", Padding = new Thickness(DurationTextPaddingLeft, 6, 6, 6), VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 6, 0, 18) };
+        var durationBox = new TextBox { Height = 38, Text = "1", VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 6, 0, 18) };
 
         var save = new Button
         {

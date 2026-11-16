@@ -110,7 +110,7 @@
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
             <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
             <Setter Property="FontSize" Value="13" />
-            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="Padding" Value="11,6" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="CaretBrush" Value="{StaticResource PrimaryTextBrush}" />
             <Setter Property="Template">
@@ -404,17 +404,20 @@
         <Style TargetType="Calendar" BasedOn="{StaticResource DarkCalendarStyle}" />
 
         <!-- ===== Date picker (text box + calendar icon in one rounded box) ===== -->
+        <!-- Text inset: every field (TextBox, DatePicker, ComboBox) starts its text 12px from the left edge of the box.
+             TextBox and DatePicker have a 1px border, so their left Padding is 11; the ComboBox draws its border separately, so its Padding is 12.
+             If one field looks 1px off, change that one number. -->
         <Style TargetType="DatePickerTextBox">
             <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="CaretBrush" Value="{StaticResource PrimaryTextBrush}" />
             <Setter Property="FontSize" Value="13" />
-            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="Padding" Value="11,0" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="DatePickerTextBox">
-                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                        <Border Background="{TemplateBinding Background}">
                             <ScrollViewer x:Name="PART_ContentHost" Focusable="False" VerticalAlignment="Center" />
                         </Border>
                     </ControlTemplate>
