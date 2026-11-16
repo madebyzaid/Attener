@@ -40,7 +40,7 @@ public static class InAppDialogService
             Width = 26,
             Height = 26,
             CornerRadius = new CornerRadius(13),
-            Background = new SolidColorBrush(Color.FromArgb(32, 255, 255, 255)),
+            Background = (Brush)host.FindResource("IconBadgeBrush"),
             Child = new TextBlock
             {
                 Text = glyph,

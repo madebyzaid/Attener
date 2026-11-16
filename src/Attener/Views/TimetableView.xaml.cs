@@ -270,7 +270,7 @@ public partial class TimetableView : UserControl
                 VerticalAlignment = VerticalAlignment.Top,
                 Margin = new Thickness(0, 4, 4, 0),
                 Background = (Brush)FindResource("HoverBrush"),
-                Foreground = Brushes.White,
+                Foreground = (Brush)FindResource("PrimaryTextBrush"),
                 BorderThickness = new Thickness(0),
                 Cursor = Cursors.Hand,
                 ToolTip = "Remove this class",

@@ -18,10 +18,6 @@ public partial class ClockTimePicker : UserControl
     private const double InnerRadius = 68;
     private const double BubbleSize = 34;
 
-    private static readonly Brush SelectedText = new SolidColorBrush(Color.FromRgb(0xE6, 0xE9, 0xEC));
-    private static readonly Brush DialFace = new SolidColorBrush(Color.FromRgb(0x20, 0x23, 0x25));
-    private static readonly Brush InactiveChip = new SolidColorBrush(Color.FromRgb(0x25, 0x2A, 0x2D));
-
     private TimeOnly _time = new(8, 0);
     private int _hour;
     private int _minute;
@@ -186,13 +182,14 @@ public partial class ClockTimePicker : UserControl
     {
         var accent = (Brush)FindResource("AccentBrush");
         var primary = (Brush)FindResource("PrimaryTextBrush");
+        var inactiveChip = (Brush)FindResource("HoverBrush");
 
         HourChipText.Text = _hour.ToString("00");
         MinuteChipText.Text = _minute.ToString("00");
-        HourChip.Background = _pickingMinutes ? InactiveChip : accent;
-        HourChipText.Foreground = _pickingMinutes ? primary : SelectedText;
-        MinuteChip.Background = _pickingMinutes ? accent : InactiveChip;
-        MinuteChipText.Foreground = _pickingMinutes ? SelectedText : primary;
+        HourChip.Background = _pickingMinutes ? inactiveChip : accent;
+        HourChipText.Foreground = primary;
+        MinuteChip.Background = _pickingMinutes ? accent : inactiveChip;
+        MinuteChipText.Foreground = primary;
         MinuteChip.Opacity = ShowMinutes ? 1 : 0.4;
     }
 
@@ -202,7 +199,7 @@ public partial class ClockTimePicker : UserControl
         var primary = (Brush)FindResource("PrimaryTextBrush");
         Dial.Children.Clear();
 
-        Dial.Children.Add(new Ellipse { Width = DialSize, Height = DialSize, Fill = DialFace, IsHitTestVisible = false });
+        Dial.Children.Add(new Ellipse { Width = DialSize, Height = DialSize, Fill = (Brush)FindResource("DialFaceBrush"), IsHitTestVisible = false });
 
         var selected = _pickingMinutes ? MinutePoint(_minute) : HourPoint(_hour);
         Dial.Children.Add(new Line
@@ -220,7 +217,7 @@ public partial class ClockTimePicker : UserControl
                 if (minute != _minute)
                     AddLabel(minute.ToString("00"), MinutePoint(minute), primary);
             }
-            AddLabel(_minute.ToString("00"), selected, SelectedText);
+            AddLabel(_minute.ToString("00"), selected, primary);
         }
         else
         {
@@ -229,7 +226,7 @@ public partial class ClockTimePicker : UserControl
                 if (hour != _hour)
                     AddLabel(hour.ToString(), HourPoint(hour), primary);
             }
-            AddLabel(_hour.ToString(), selected, SelectedText);
+            AddLabel(_hour.ToString(), selected, primary);
         }
     }
 

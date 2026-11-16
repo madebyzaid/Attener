@@ -14,8 +14,7 @@
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
-        <!-- Nav label. It deliberately sets NO Foreground, so it follows the pill's text colour
-             (the global TextBlock style would otherwise force it to white). -->
+        <!-- Nav label. It deliberately sets NO Foreground, so it follows the pill's text colour. -->
         <Style x:Key="NavLabelStyle" TargetType="TextBlock">
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
@@ -137,7 +136,7 @@
 
             <Grid x:Name="DialogOverlay" Grid.ColumnSpan="2"
                   Panel.ZIndex="100" Visibility="Collapsed"
-                  Background="#99000000" FocusManager.IsFocusScope="True"
+                  Background="{StaticResource OverlayBrush}" FocusManager.IsFocusScope="True"
                   KeyboardNavigation.TabNavigation="Cycle"
                   PreviewKeyDown="DialogOverlay_PreviewKeyDown">
                 <Border x:Name="DialogFrame" Background="{StaticResource SurfaceBackgroundBrush}"

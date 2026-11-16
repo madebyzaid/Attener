@@ -453,7 +453,7 @@ public partial class SettingsView : UserControl
             Padding = new Thickness(14, 7, 14, 7),
             IsEnabled = false,
             Background = (Brush)FindResource("DangerBrush"),
-            Foreground = Brushes.White,
+            Foreground = (Brush)FindResource("OnDangerTextBrush"),
             BorderThickness = new Thickness(0),
             Cursor = System.Windows.Input.Cursors.Hand
         };

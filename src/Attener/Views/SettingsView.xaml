@@ -68,7 +68,7 @@
             </Border>
 
             <!-- Danger zone -->
-            <Border Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="#663F2630"
+            <Border Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="{StaticResource DangerBorderBrush}"
                     BorderThickness="1" CornerRadius="9" Padding="18" Margin="0,14,0,0">
                 <StackPanel>
                     <TextBlock Text="Danger zone" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource DangerBrush}" />
@@ -77,7 +77,7 @@
                                TextWrapping="Wrap" MaxWidth="800" HorizontalAlignment="Left"
                                Margin="0,9,0,18" />
                     <Button Content="Delete all data" Padding="18,0" Height="40" HorizontalAlignment="Left"
-                            Background="{StaticResource DangerBrush}" Foreground="White" FontWeight="SemiBold"
+                            Background="{StaticResource DangerBrush}" Foreground="{StaticResource OnDangerTextBrush}" FontWeight="SemiBold"
                             BorderThickness="0" Cursor="Hand" Click="DeleteAllData_Click" />
                 </StackPanel>
             </Border>

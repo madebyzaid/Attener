@@ -20,6 +20,12 @@
         <SolidColorBrush x:Key="PresentTextBrush" Color="#12331F" />
         <SolidColorBrush x:Key="AbsentBrush" Color="#F52F63" />
         <SolidColorBrush x:Key="CancelledBrush" Color="#3B82F6" />
+        <SolidColorBrush x:Key="NotMarkedDayBrush" Color="#343A40" />
+        <SolidColorBrush x:Key="DialFaceBrush" Color="#202325" />
+        <SolidColorBrush x:Key="OverlayBrush" Color="#99000000" />
+        <SolidColorBrush x:Key="IconBadgeBrush" Color="#20FFFFFF" />
+        <SolidColorBrush x:Key="DangerBorderBrush" Color="#663F2630" />
+        <SolidColorBrush x:Key="OnDangerTextBrush" Color="White" />
         <FontFamily x:Key="AppFontFamily">pack://application:,,,/Assets/Fonts/#Inter</FontFamily>
         <FontFamily x:Key="MonoFontFamily">Consolas</FontFamily>
 
@@ -893,7 +899,7 @@
 
         <Style x:Key="DangerButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Background" Value="{StaticResource DangerBrush}" />
-            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Foreground" Value="{StaticResource OnDangerTextBrush}" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="14,7" />
