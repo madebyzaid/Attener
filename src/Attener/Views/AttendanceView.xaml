@@ -22,29 +22,11 @@
                             </Border>
                         </StackPanel>
                         <TextBlock Text="{Binding Entry.Professor}" FontSize="11"
-                                   Foreground="{StaticResource SecondaryTextBrush}" Margin="0,3,0,0">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Entry.HasProfessor}" Value="False">
-                                            <Setter Property="Visibility" Value="Collapsed" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
+                                   Foreground="{StaticResource SecondaryTextBrush}" Margin="0,3,0,0"
+                                   Style="{StaticResource HideIfEmptyTextStyle}" />
                         <TextBlock Text="{Binding Entry.Venue}" FontSize="11"
-                                   Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,0">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Entry.HasVenue}" Value="False">
-                                            <Setter Property="Visibility" Value="Collapsed" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
+                                   Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,0"
+                                   Style="{StaticResource HideIfEmptyTextStyle}" />
                         <TextBlock Text="{Binding ScheduledTime}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}"
                                    Foreground="{StaticResource SecondaryTextBrush}" Margin="0,5,0,0" />
                     </StackPanel>

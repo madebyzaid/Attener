@@ -15,30 +15,12 @@
                            Foreground="{StaticResource SecondaryTextBrush}" />
                 <TextBlock Text="{Binding Professor}" FontSize="11"
                            Foreground="{StaticResource SecondaryTextBrush}" Margin="0,5,0,0"
-                           TextTrimming="CharacterEllipsis" ToolTip="{Binding Professor}">
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding HasProfessor}" Value="False">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
+                           TextTrimming="CharacterEllipsis" ToolTip="{Binding Professor}"
+                           Style="{StaticResource HideIfEmptyTextStyle}" />
                 <TextBlock Text="{Binding Venue}" FontSize="11"
                            Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,0"
-                           TextTrimming="CharacterEllipsis" ToolTip="{Binding Venue}">
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding HasVenue}" Value="False">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
+                           TextTrimming="CharacterEllipsis" ToolTip="{Binding Venue}"
+                           Style="{StaticResource HideIfEmptyTextStyle}" />
             </StackPanel>
         </DataTemplate>
 

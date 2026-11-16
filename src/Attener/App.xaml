@@ -94,7 +94,15 @@
             <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
             <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
         </Style>
-
+        <!-- Hides a TextBlock whose text is empty. Use it for the optional professor and venue lines:
+             Style="{StaticResource HideIfEmptyTextStyle}". -->
+        <Style x:Key="HideIfEmptyTextStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Style.Triggers>
+                <Trigger Property="Text" Value="">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
         <Style TargetType="TextBox">
             <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
             <Setter Property="Background" Value="{StaticResource SurfaceBackgroundBrush}" />
