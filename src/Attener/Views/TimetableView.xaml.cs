@@ -373,6 +373,7 @@ public partial class TimetableView : UserControl
             row.Children.Add(new TextBlock
             {
                 Text = subject.Name,
+                Foreground = (Brush)FindResource("PrimaryTextBrush"),
                 FontSize = 13,
                 FontWeight = FontWeights.SemiBold,
                 TextTrimming = TextTrimming.CharacterEllipsis,
