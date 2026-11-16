@@ -5,14 +5,21 @@
     <Grid>
         <!-- The visible field: a time you can type, plus a clock button that opens the dial. -->
         <Border x:Name="FieldBorder" Background="{StaticResource SurfaceBackgroundBrush}"
-                BorderThickness="1" CornerRadius="10">
+                BorderThickness="1" CornerRadius="{StaticResource ControlCornerRadius}">
             <Border.Style>
                 <Style TargetType="Border">
                     <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
                     <Style.Triggers>
+                        <!-- When two triggers set the same thing, the one lower down wins. -->
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="BorderBrush" Value="{StaticResource MutedBrush}" />
+                        </Trigger>
                         <Trigger Property="IsKeyboardFocusWithin" Value="True">
                             <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
                         </Trigger>
+                        <DataTrigger Binding="{Binding IsOpen, ElementName=DialPopup}" Value="True">
+                            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                        </DataTrigger>
                     </Style.Triggers>
                 </Style>
             </Border.Style>

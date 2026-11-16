@@ -117,7 +117,7 @@
                     <ControlTemplate TargetType="TextBox">
                     <Border x:Name="Box" Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{StaticResource ControlCornerRadius}">
                         <ScrollViewer x:Name="PART_ContentHost" Focusable="False"
                                     HorizontalScrollBarVisibility="Hidden"
                                     VerticalScrollBarVisibility="Disabled" />
@@ -126,6 +126,13 @@
                             <Trigger Property="IsKeyboardFocused" Value="True">
                                 <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
                             </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True" />
+                                    <Condition Property="IsKeyboardFocused" Value="False" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource MutedBrush}" />
+                            </MultiTrigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="Box" Property="Opacity" Value="0.55" />
                             </Trigger>
@@ -440,10 +447,10 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="DatePicker">
-                        <Border Background="{TemplateBinding Background}"
+                        <Border x:Name="Box" Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6">
+                                CornerRadius="{StaticResource ControlCornerRadius}">
                             <Grid x:Name="PART_Root">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
@@ -459,6 +466,21 @@
                                        StaysOpen="False" VerticalOffset="4" />
                             </Grid>
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <!-- When two triggers set the same thing, the one lower down wins. -->
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource MutedBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsDropDownOpen" Value="True">
+                                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.55" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -476,7 +498,7 @@
                     <ControlTemplate TargetType="ComboBox">
                         <Grid x:Name="Root" SnapsToDevicePixels="True">
                             <Border x:Name="Box" Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="10" />
+                                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="{StaticResource ControlCornerRadius}" />
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
@@ -578,7 +600,7 @@
                     <ControlTemplate TargetType="ComboBox">
                         <Grid x:Name="Root" SnapsToDevicePixels="True">
                             <Border x:Name="Box" Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="10" />
+                                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="{StaticResource ControlCornerRadius}" />
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
