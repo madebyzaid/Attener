@@ -211,8 +211,13 @@ public partial class AttendanceView : UserControl
         panel.Children.Add(new TextBlock { Text = "Add attendance entry", FontSize = 18, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 16) });
         panel.Children.Add(MakeLabel("Subject"));
         panel.Children.Add(subjectBox);
-        panel.Children.Add(MakeLabel("Date"));
-        panel.Children.Add(dateBox);
+        // From the Calendar the date is already chosen (lockDate), so the field is hidden.
+        // dateBox still exists and holds that date for the Save handler below.
+        if (!lockDate)
+        {
+            panel.Children.Add(MakeLabel("Date"));
+            panel.Children.Add(dateBox);
+        }
         panel.Children.Add(MakeLabel("Status"));
         panel.Children.Add(statusBox);
         panel.Children.Add(MakeLabel("Duration (hours, for example 1 or 1.5)"));
