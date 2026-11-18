@@ -401,8 +401,6 @@ public partial class AttendanceView : UserControl
         // Attendance rows are always editable.
         public bool CanEdit => true;
 
-        public Visibility ManualVisibility => Entry.IsManual ? Visibility.Visible : Visibility.Collapsed;
-
         // The Delete button only appears on records that were added by hand.
         public Visibility DeleteVisibility => Entry.IsManual ? Visibility.Visible : Visibility.Collapsed;
 

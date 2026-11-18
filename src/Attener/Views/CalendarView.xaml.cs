@@ -263,7 +263,6 @@ public partial class CalendarView : UserControl
         public bool IsPresent => SelectedStatus == AttendanceStatus.Present;
         public bool IsAbsent => SelectedStatus == AttendanceStatus.Absent;
         public bool IsCancelled => SelectedStatus == AttendanceStatus.Cancelled;
-        public Visibility ManualVisibility => Entry.IsManual ? Visibility.Visible : Visibility.Collapsed;
         public Visibility DeleteVisibility => Entry.IsManual ? Visibility.Visible : Visibility.Collapsed;
         public CalendarSessionRow(AttendanceEntry entry, string timeRange, bool canEdit)
         { Entry = entry; TimeText = timeRange; CanEdit = canEdit; }
