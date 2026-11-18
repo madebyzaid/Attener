@@ -209,15 +209,13 @@ public partial class CalendarView : UserControl
                         ? "Time unavailable"
                         : $"{entry.ScheduledStart}–{entry.ScheduledEnd}",
                 date > today || (semesterStart is not null && date >= semesterStart.Value)))
-            .OrderBy(row => row.TimeRange).ToArray();
+            .OrderBy(row => row.TimeText).ToArray();
 
         SessionsList.ItemsSource = rows;
         EmptyStateText.Visibility = rows.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void Present_Click(object sender, RoutedEventArgs e) => SetStatus(sender, AttendanceStatus.Present);
-    private void Absent_Click(object sender, RoutedEventArgs e) => SetStatus(sender, AttendanceStatus.Absent);
-    private void Cancelled_Click(object sender, RoutedEventArgs e) => SetStatus(sender, AttendanceStatus.Cancelled);
+    private void Row_StatusClicked(object sender, AttendanceStatus clicked) => SetStatus(sender, clicked);
 
     private void SetStatus(object sender, AttendanceStatus clicked)
     {
@@ -227,7 +225,7 @@ public partial class CalendarView : UserControl
             row.SelectedStatus == clicked ? AttendanceStatus.NotMarked : clicked);
         RefreshAttendanceViews();
     }
-    private void DeleteManual_Click(object sender, RoutedEventArgs e)
+    private void DeleteManual_Click(object sender, EventArgs e)
     {
         if (sender is not FrameworkElement { DataContext: CalendarSessionRow row } || !row.Entry.IsManual) return;
         var answer = InAppDialogService.Show(this, $"Delete this {row.Entry.SubjectName} entry for {row.Entry.AttendanceDate:dd MMM yyyy}? This cannot be undone.",
@@ -259,7 +257,7 @@ public partial class CalendarView : UserControl
         public string Venue => Entry.Venue;
         public bool HasProfessor => Entry.HasProfessor;
         public bool HasVenue => Entry.HasVenue;
-        public string TimeRange { get; }
+        public string TimeText { get; }
         public bool CanEdit { get; }
         public AttendanceStatus SelectedStatus => Entry.Status ?? AttendanceStatus.NotMarked;
         public bool IsPresent => SelectedStatus == AttendanceStatus.Present;
@@ -268,7 +266,7 @@ public partial class CalendarView : UserControl
         public Visibility ManualVisibility => Entry.IsManual ? Visibility.Visible : Visibility.Collapsed;
         public Visibility DeleteVisibility => Entry.IsManual ? Visibility.Visible : Visibility.Collapsed;
         public CalendarSessionRow(AttendanceEntry entry, string timeRange, bool canEdit)
-        { Entry = entry; TimeRange = timeRange; CanEdit = canEdit; }
+        { Entry = entry; TimeText = timeRange; CanEdit = canEdit; }
     }
 
     private sealed class CalendarSubjectFilter : INotifyPropertyChanged

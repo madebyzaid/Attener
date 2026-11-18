@@ -86,11 +86,7 @@ public partial class AttendanceView : UserControl
                 ? "No scheduled time"
                 : $"{entry.ScheduledStart}–{entry.ScheduledEnd}";
 
-    private void Present_Click(object sender, RoutedEventArgs e) => SetStatus(sender, AttendanceStatus.Present);
-
-    private void Absent_Click(object sender, RoutedEventArgs e) => SetStatus(sender, AttendanceStatus.Absent);
-
-    private void Cancelled_Click(object sender, RoutedEventArgs e) => SetStatus(sender, AttendanceStatus.Cancelled);
+    private void Row_StatusClicked(object sender, AttendanceStatus clicked) => SetStatus(sender, clicked);
 
     // Clicking the status that is already selected un-marks the class (back to Not Marked).
     // Hand-added entries are un-marked the same way; only their Delete button removes them.
@@ -105,7 +101,7 @@ public partial class AttendanceView : UserControl
         LoadAttendance();
     }
 
-    private void DeleteManual_Click(object sender, RoutedEventArgs e)
+    private void DeleteManual_Click(object sender, EventArgs e)
     {
         if (sender is not FrameworkElement { DataContext: AttendanceRow row } || !row.Entry.IsManual)
             return;
@@ -395,12 +391,17 @@ public partial class AttendanceView : UserControl
     private sealed class AttendanceRow
     {
         public AttendanceEntry Entry { get; }
-        public string ScheduledTime { get; }
+        public string TimeText { get; }
         public AttendanceStatus SelectedStatus { get; }
 
         public bool IsPresent => SelectedStatus == AttendanceStatus.Present;
         public bool IsAbsent => SelectedStatus == AttendanceStatus.Absent;
         public bool IsCancelled => SelectedStatus == AttendanceStatus.Cancelled;
+
+        // Attendance rows are always editable.
+        public bool CanEdit => true;
+
+        public Visibility ManualVisibility => Entry.IsManual ? Visibility.Visible : Visibility.Collapsed;
 
         // The Delete button only appears on records that were added by hand.
         public Visibility DeleteVisibility => Entry.IsManual ? Visibility.Visible : Visibility.Collapsed;
@@ -408,7 +409,7 @@ public partial class AttendanceView : UserControl
         public AttendanceRow(AttendanceEntry entry, string scheduledTime, AttendanceStatus selectedStatus)
         {
             Entry = entry;
-            ScheduledTime = scheduledTime;
+            TimeText = scheduledTime;
             SelectedStatus = selectedStatus;
         }
     }

@@ -1,0 +1,49 @@
+<UserControl x:Class="Attener.Controls.AttendanceRowCard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Border Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}"
+            BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,10">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{Binding Entry.SubjectName}" FontSize="15" FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    <Border Background="{StaticResource HoverBrush}" CornerRadius="5"
+                            Padding="7,3" Margin="8,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Entry.Type}" FontSize="10"
+                                   Foreground="{StaticResource SecondaryTextBrush}" />
+                    </Border>
+                </StackPanel>
+                <TextBlock Text="{Binding Entry.Professor}" FontSize="11"
+                           Foreground="{StaticResource SecondaryTextBrush}" Margin="0,3,0,0"
+                           Style="{StaticResource HideIfEmptyTextStyle}" />
+                <TextBlock Text="{Binding Entry.Venue}" FontSize="11"
+                           Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,0"
+                           Style="{StaticResource HideIfEmptyTextStyle}" />
+                <TextBlock Text="{Binding TimeText}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}"
+                           Foreground="{StaticResource SecondaryTextBrush}" Margin="0,5,0,0" />
+                <TextBlock Text="Added manually" FontSize="11"
+                           Foreground="{StaticResource AccentBrush}" Margin="0,3,0,0"
+                           Visibility="{Binding ManualVisibility}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Content="Present" Style="{StaticResource StatusButtonStyle}"
+                        Tag="{StaticResource PresentBrush}"
+                        IsEnabled="{Binding CanEdit}" Click="Present_Click" />
+                <Button Content="Absent" Style="{StaticResource StatusButtonStyle}"
+                        Tag="{StaticResource AbsentBrush}"
+                        IsEnabled="{Binding CanEdit}" Click="Absent_Click" />
+                <Button Content="Cancelled" Style="{StaticResource StatusButtonStyle}"
+                        Tag="{StaticResource CancelledBrush}"
+                        IsEnabled="{Binding CanEdit}" Click="Cancelled_Click" />
+                <Button Content="Delete" Style="{StaticResource SecondaryButtonStyle}"
+                        Click="Delete_Click" Visibility="{Binding DeleteVisibility}"
+                        Margin="10,0,0,0" Padding="12,0" Height="38" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>
