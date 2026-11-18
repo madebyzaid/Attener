@@ -50,28 +50,6 @@
             </Border>
         </DataTemplate>
 
-        <DataTemplate x:Key="SubjectChoiceTemplate">
-            <Grid Margin="2">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding SubjectName}" TextTrimming="CharacterEllipsis" />
-                    <TextBlock Text=" · Archived" Margin="5,0,0,0"
-                               Foreground="{StaticResource SecondaryTextBrush}"
-                               Visibility="{Binding ArchivedVisibility}" />
-                </StackPanel>
-                <Border Grid.Column="1" Width="24" Height="24" Background="{StaticResource HoverBrush}"
-                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                        CornerRadius="4" Margin="6,0,0,0" ToolTip="{Binding Type}">
-                    <TextBlock Text="{Binding TypeLetter}" FontSize="13" FontWeight="SemiBold"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                               Foreground="{StaticResource SecondaryTextBrush}" />
-                </Border>
-            </Grid>
-        </DataTemplate>
-
         <!-- One card per date. Today's card keeps the TODAY badge and slightly emphasized title,
              but no accent border so it matches the other day cards. -->
         <DataTemplate x:Key="DayCardTemplate">

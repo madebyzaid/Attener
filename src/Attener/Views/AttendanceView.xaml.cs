@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Attener.Domain;
+using Attener.Controls;
 using Attener.Features.Attendance;
 using Attener.Features.Subjects;
 using Attener.Infrastructure.Database;
@@ -137,12 +138,14 @@ public partial class AttendanceView : UserControl
         if (selectedDate.Date < semesterStartDate)
             selectedDate = semesterStartDate;
 
-        var choices = _subjects.GetSubjects(includeArchived: false)
+        var subjects = _subjects.GetSubjects(includeArchived: false)
             .Concat(_subjects.GetSubjects(includeArchived: true))
-            .SelectMany(subject => subject.Types.Select(type => new SubjectChoice(
-                subject.Id, type, subject.Name, subject.IsArchived)))
+            .Where(subject => subject.Types.Any())
+            .Select(subject => (Id: subject.Id,
+                Name: subject.Name + (subject.IsArchived ? " · Archived" : ""),
+                Types: subject.Types.ToList()))
             .ToList();
-        if (choices.Count == 0)
+        if (subjects.Count == 0)
         {
             InAppDialogService.Show(this, "Add a subject in Subjects first.", "No subjects yet",
                 MessageBoxButton.OK, MessageBoxImage.Information);
@@ -150,14 +153,83 @@ public partial class AttendanceView : UserControl
         }
 
         var secondary = (Brush)FindResource("SecondaryTextBrush");
-        var subjectBox = new ComboBox
+
+        // Subject + class type: a field that opens a popup of subject rows; only the L/T/P badges pick.
+        var chosenId = subjects[0].Id;
+        var chosenName = subjects[0].Name;
+        var chosenType = subjects[0].Types[0];
+        var pickText = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+        var pickChevron = new TextBlock { Text = "▾", Foreground = secondary, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
+        var pickContent = new Grid();
+        pickContent.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        pickContent.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        pickContent.Children.Add(pickText);
+        Grid.SetColumn(pickChevron, 1);
+        pickContent.Children.Add(pickChevron);
+        var subjectBox = new Button
         {
             Height = 38,
-            ItemsSource = choices,
-            ItemTemplate = (DataTemplate)FindResource("SubjectChoiceTemplate"),
-            SelectedIndex = 0,
+            Style = (Style)FindResource("SecondaryButtonStyle"),
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Content = pickContent,
             Margin = new Thickness(0, 6, 0, 14)
         };
+        void ShowChoice() => pickText.Text = $"{chosenName} · {new SubjectTypeBadge(chosenType).Letter}";
+        ShowChoice();
+        subjectBox.Click += (_, _) =>
+        {
+            var popup = new Popup
+            {
+                PlacementTarget = subjectBox,
+                Placement = PlacementMode.Bottom,
+                VerticalOffset = 4,
+                StaysOpen = false,
+                AllowsTransparency = true,
+                PopupAnimation = PopupAnimation.Fade
+            };
+            var list = new StackPanel();
+            foreach (var subject in subjects)
+            {
+                var picker = new SubjectTypePicker
+                {
+                    Mode = SubjectTypePickerMode.Select,
+                    SubjectName = subject.Name,
+                    NameMaxWidth = 200,
+                    FontSize = 13,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = (Brush)FindResource("PrimaryTextBrush"),
+                    Margin = new Thickness(10, 2, 6, 2),
+                    Badges = subject.Types.Select(type =>
+                        new SubjectTypeBadge(type, subject.Id == chosenId && type == chosenType)).ToList()
+                };
+                picker.TypeClicked += (_, args) =>
+                {
+                    chosenId = subject.Id;
+                    chosenName = subject.Name;
+                    chosenType = args.Type!.Value;
+                    popup.IsOpen = false;
+                    ShowChoice();
+                };
+                list.Children.Add(picker);
+            }
+            popup.Child = new Border
+            {
+                Background = (Brush)FindResource("SurfaceBackgroundBrush"),
+                BorderBrush = (Brush)FindResource("BorderBrush"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(4),
+                MinWidth = Math.Max(240, subjectBox.ActualWidth),
+                Child = new ScrollViewer
+                {
+                    MaxHeight = 320,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    Content = list
+                }
+            };
+            popup.IsOpen = true;
+        };
+
         var dateBox = new DatePicker
         {
             Height = 38,
@@ -175,9 +247,11 @@ public partial class AttendanceView : UserControl
             {
                 new StatusChoice(AttendanceStatus.Present, "Present"),
                 new StatusChoice(AttendanceStatus.Absent, "Absent"),
-                new StatusChoice(AttendanceStatus.Cancelled, "Cancelled")
+                new StatusChoice(AttendanceStatus.Cancelled, "Cancelled"),
+                new StatusChoice(AttendanceStatus.NotMarked, "Not Marked")
             },
-            SelectedIndex = 0,
+            // From the Calendar the default is Not Marked; from the Attendance page it is Present.
+            SelectedIndex = lockDate ? 3 : 0,
             Margin = new Thickness(0, 6, 0, 14)
         };
         var durationBox = new TextBox { Height = 38, Text = "1", VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 6, 0, 18) };
@@ -265,10 +339,9 @@ public partial class AttendanceView : UserControl
         if (InAppDialogService.ShowCustom(this, panel, subjectBox) != true)
             return;
 
-        var chosenSubject = (SubjectChoice)subjectBox.SelectedItem;
         var status = (StatusChoice)statusBox.SelectedItem;
         var date = dateBox.SelectedDate!.Value;
-        _attendance.AddManualEntry(chosenSubject.Id, chosenSubject.Type,
+        _attendance.AddManualEntry(chosenId, chosenType,
             DateOnly.FromDateTime(date), status.Status, minutes);
         LoadAttendance();
     }
@@ -281,18 +354,6 @@ public partial class AttendanceView : UserControl
 
     private static string FormatHours(int minutes) =>
         $"{(minutes / 60m).ToString("0.##", CultureInfo.InvariantCulture)} h";
-
-    private sealed record SubjectChoice(long Id, SubjectType Type, string SubjectName, bool IsArchived)
-    {
-        public string TypeLetter => Type switch
-        {
-            SubjectType.Lecture => "L",
-            SubjectType.Tutorial => "T",
-            SubjectType.Practical => "P",
-            _ => throw new ArgumentOutOfRangeException(nameof(Type))
-        };
-        public Visibility ArchivedVisibility => IsArchived ? Visibility.Visible : Visibility.Collapsed;
-    }
 
     private sealed record StatusChoice(AttendanceStatus Status, string Label) { public override string ToString() => Label; }
 
