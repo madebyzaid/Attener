@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using Attener.Controls;
 using Attener.Domain;
 using Attener.Features.Attendance;
 using Attener.Features.Subjects;
@@ -89,8 +90,8 @@ public partial class CalendarView : UserControl
             filters.AddRange(subjects.Select(subject =>
             {
                 var label = subject.Name + (subject.IsArchived ? " · Archived" : "");
-                var badges = subject.Types.Select(type => new CalendarTypeFilter(
-                    subject.Id, type, _selectedSubjectId == subject.Id && _selectedType == type)).ToArray();
+                var badges = subject.Types.Select(type => new SubjectTypeBadge(
+                    type, _selectedSubjectId == subject.Id && _selectedType == type)).ToArray();
                 var selectedType = _selectedSubjectId == subject.Id ? _selectedType : null;
                 return new CalendarSubjectFilter(subject.Id, label, badges, selectedType);
             }));
@@ -123,23 +124,18 @@ public partial class CalendarView : UserControl
         ApplySubjectFilter(filter.SubjectId, null);
     }
 
-    private void SubjectNameFilter_MouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    private void SubjectPicker_SubjectClicked(object? sender, SubjectTypePickerEventArgs e)
     {
-        if (sender is not FrameworkElement { Tag: CalendarSubjectFilter filter }
-            || (_selectedSubjectId == filter.SubjectId && _selectedType is null))
+        if (sender is not FrameworkElement { DataContext: CalendarSubjectFilter filter })
             return;
-
-        e.Handled = true;
         ApplySubjectFilter(filter.SubjectId, null);
     }
 
-    private void SubjectTypeBadge_Click(object sender, RoutedEventArgs e)
+    private void SubjectPicker_TypeClicked(object? sender, SubjectTypePickerEventArgs e)
     {
-        if (sender is not Button { Tag: CalendarTypeFilter filter })
+        if (sender is not FrameworkElement { DataContext: CalendarSubjectFilter filter })
             return;
-
-        e.Handled = true;
-        ApplySubjectFilter(filter.SubjectId, filter.Type);
+        ApplySubjectFilter(filter.SubjectId, e.Type);
     }
 
     private void ApplySubjectFilter(long? subjectId, SubjectType? type)
@@ -166,7 +162,7 @@ public partial class CalendarView : UserControl
         {
             filter.SelectedType = filter.SubjectId == _selectedSubjectId ? _selectedType : null;
             foreach (var badge in filter.TypeBadges)
-                badge.IsSelected = badge.SubjectId == _selectedSubjectId && badge.Type == _selectedType;
+                badge.IsSelected = filter.SubjectId == _selectedSubjectId && badge.Type == _selectedType;
         }
     }
 
@@ -281,7 +277,7 @@ public partial class CalendarView : UserControl
 
         public long? SubjectId { get; }
         public string Label { get; }
-        public IReadOnlyList<CalendarTypeFilter> TypeBadges { get; }
+        public IReadOnlyList<SubjectTypeBadge> TypeBadges { get; }
         public string? SelectedTypeLetter => _selectedType is SubjectType type ? TypeLetter(type) : null;
         public Visibility SelectedTypeVisibility => _selectedType is null ? Visibility.Collapsed : Visibility.Visible;
 
@@ -299,7 +295,7 @@ public partial class CalendarView : UserControl
         }
 
         public CalendarSubjectFilter(long? subjectId, string label,
-            IReadOnlyList<CalendarTypeFilter> typeBadges, SubjectType? selectedType)
+            IReadOnlyList<SubjectTypeBadge> typeBadges, SubjectType? selectedType)
         {
             SubjectId = subjectId;
             Label = label;
@@ -311,34 +307,6 @@ public partial class CalendarView : UserControl
         public event PropertyChangedEventHandler? PropertyChanged;
     }
 
-    private sealed class CalendarTypeFilter : INotifyPropertyChanged
-    {
-        private bool _isSelected;
-
-        public long SubjectId { get; }
-        public SubjectType Type { get; }
-        public string Letter => TypeLetter(Type);
-        public bool IsSelected
-        {
-            get => _isSelected;
-            set
-            {
-                if (_isSelected == value)
-                    return;
-                _isSelected = value;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
-            }
-        }
-
-        public CalendarTypeFilter(long subjectId, SubjectType type, bool isSelected)
-        {
-            SubjectId = subjectId;
-            Type = type;
-            _isSelected = isSelected;
-        }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-    }
 }
 
 // Used by the Calendar page's day cells (see StatusDayButtonStyle in CalendarView.xaml).

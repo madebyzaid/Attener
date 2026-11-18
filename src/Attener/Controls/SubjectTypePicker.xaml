@@ -1,0 +1,49 @@
+<UserControl x:Class="Attener.Controls.SubjectTypePicker"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <Style x:Key="SubjectTypePickerBadgeStyle" TargetType="Button"
+               BasedOn="{StaticResource BadgeButtonStyle}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <TextBlock x:Name="SubjectNameText" Grid.Column="0"
+                   Text="{Binding SubjectName, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                   TextTrimming="CharacterEllipsis"
+                   VerticalAlignment="Center"
+                   Margin="0,0,12,0"
+                   MaxWidth="{Binding NameMaxWidth, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                   MouseLeftButtonUp="SubjectName_MouseLeftButtonUp" />
+
+        <ItemsControl Grid.Column="1"
+                      ItemsSource="{Binding Badges, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                      VerticalAlignment="Center">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Button Content="{Binding Letter}"
+                            ToolTip="{Binding Type}"
+                            Margin="5,0,0,0"
+                            Tag="{Binding}"
+                            Click="Badge_Click"
+                            Style="{StaticResource SubjectTypePickerBadgeStyle}" />
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </Grid>
+</UserControl>

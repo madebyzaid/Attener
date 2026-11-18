@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using Attener.Controls;
 using Attener.Features.Attendance;
 using Attener.Features.Subjects;
 using Attener.Features.Timetable;
@@ -366,59 +367,23 @@ public partial class TimetableView : UserControl
 
         foreach (var subject in _activeSubjects)
         {
-            var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            row.Children.Add(new TextBlock
+            var picker = new SubjectTypePicker
             {
-                Text = subject.Name,
-                Foreground = (Brush)FindResource("PrimaryTextBrush"),
+                Mode = SubjectTypePickerMode.Select,
+                SubjectName = subject.Name,
+                NameMaxWidth = 200,
                 FontSize = 13,
                 FontWeight = FontWeights.SemiBold,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                MaxWidth = 200,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(10, 0, 18, 0)
-            });
-
-            // One badge per class type that is enabled for this subject.
-            var badges = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 6, 0) };
-            foreach (var type in subject.Types)
+                Margin = new Thickness(10, 2, 6, 2),
+                Badges = subject.Types.Select(type => new SubjectTypeBadge(type)).ToList()
+            };
+            picker.TypeClicked += (_, args) =>
             {
-                var normalBackground = (Brush)FindResource("WindowBackgroundBrush");
-                var hoverBackground = (Brush)FindResource("AccentBrush");
-                var badge = new Button
-                {
-                    Content = TypeLetter(type),
-                    ToolTip = type.ToString(),
-                    Width = 24,
-                    Height = 24,
-                    Padding = new Thickness(0),
-                    Margin = new Thickness(5, 0, 0, 0),
-                    FontSize = 13,
-                    FontWeight = FontWeights.SemiBold,
-                    Background = normalBackground,
-                    Foreground = (Brush)FindResource("PrimaryTextBrush"),
-                    BorderBrush = (Brush)FindResource("BorderBrush"),
-                    BorderThickness = new Thickness(1),
-                    Cursor = Cursors.Hand
-                };
-                badge.MouseEnter += (_, _) => badge.Background = hoverBackground;
-                badge.MouseLeave += (_, _) => badge.Background = normalBackground;
-
-                var assignment = new ClassAssignment(subject.Id, type);
-                badge.Click += (_, _) =>
-                {
-                    // Close first: ChangeHours rebuilds the whole grid, including the button this popup sits on.
-                    popup.IsOpen = false;
-                    ChangeHours(cell.Day, [cell.Hour], assignment);
-                };
-                badges.Children.Add(badge);
-            }
-            Grid.SetColumn(badges, 1);
-            row.Children.Add(badges);
-            list.Children.Add(row);
+                // Close first: ChangeHours rebuilds the whole grid, including the button this popup sits on.
+                popup.IsOpen = false;
+                ChangeHours(cell.Day, [cell.Hour], new ClassAssignment(subject.Id, args.Type!.Value));
+            };
+            list.Children.Add(picker);
         }
 
         popup.Child = new Border
@@ -438,14 +403,6 @@ public partial class TimetableView : UserControl
         };
         popup.IsOpen = true;
     }
-
-    private static string TypeLetter(SubjectType type) => type switch
-    {
-        SubjectType.Lecture => "L",
-        SubjectType.Tutorial => "T",
-        SubjectType.Practical => "P",
-        _ => "?"
-    };
 
     private void RemoveBlock_Click(object sender, RoutedEventArgs e)
     {
