@@ -12,7 +12,7 @@
     <!-- Current timetable, or an earlier one to look at (read-only) -->
     <StackPanel Grid.Row="1" Margin="0,0,0,14">
       <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-        <ComboBox x:Name="HistoryBox" Width="380" Height="38" SelectionChanged="HistoryBox_SelectionChanged"/>
+        <ComboBox x:Name="HistoryBox" Width="380" Height="{StaticResource FieldHeight}" SelectionChanged="HistoryBox_SelectionChanged"/>
       </StackPanel>
       <TextBlock x:Name="HistoryNote" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}"
                  Margin="0,4,0,0" Visibility="Collapsed"/>
@@ -20,9 +20,9 @@
 
     <!-- Visible hours -->
     <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,14" VerticalAlignment="Center">
-      <local:ClockTimePicker x:Name="StartHourPicker" Width="120" Height="38" TimeCommitted="HourPicker_TimeCommitted"/>
+      <local:ClockTimePicker x:Name="StartHourPicker" Width="120" Height="{StaticResource FieldHeight}" TimeCommitted="HourPicker_TimeCommitted"/>
       <TextBlock Text="to" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center" Margin="10,0"/>
-      <local:ClockTimePicker x:Name="EndHourPicker" Width="120" Height="38" TimeCommitted="HourPicker_TimeCommitted"/>
+      <local:ClockTimePicker x:Name="EndHourPicker" Width="120" Height="{StaticResource FieldHeight}" TimeCommitted="HourPicker_TimeCommitted"/>
     </StackPanel>
 
     <ScrollViewer Grid.Row="3" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"><Grid x:Name="TimetableGrid" MinWidth="1080"/></ScrollViewer>

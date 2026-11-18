@@ -164,7 +164,7 @@ public partial class AttendanceView : UserControl
         pickContent.Children.Add(pickChevron);
         var subjectBox = new Button
         {
-            Height = 38,
+            Height = (double)FindResource("FieldHeight"),
             Style = (Style)FindResource("SecondaryButtonStyle"),
             Background = (Brush)FindResource("SurfaceBackgroundBrush"),
             Foreground = (Brush)FindResource("PrimaryTextBrush"),
@@ -232,7 +232,7 @@ public partial class AttendanceView : UserControl
 
         var dateBox = new DatePicker
         {
-            Height = 38,
+            Height = (double)FindResource("FieldHeight"),
             DisplayDateStart = semesterStartDate,
             SelectedDate = selectedDate,
             IsEnabled = !lockDate,
@@ -242,7 +242,7 @@ public partial class AttendanceView : UserControl
             new System.Windows.Input.MouseEventHandler(ReleaseCalendarCapture));
         var statusBox = new ComboBox
         {
-            Height = 38,
+            Height = (double)FindResource("FieldHeight"),
             ItemsSource = new[]
             {
                 new StatusChoice(AttendanceStatus.Present, "Present"),
@@ -254,7 +254,7 @@ public partial class AttendanceView : UserControl
             SelectedIndex = lockDate ? 3 : 0,
             Margin = new Thickness(0, 6, 0, 14)
         };
-        var durationBox = new TextBox { Height = 38, Text = "1", VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 6, 0, 18) };
+        var durationBox = new TextBox { Height = (double)FindResource("FieldHeight"), Text = "1", VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 6, 0, 18) };
 
         var save = new Button
         {

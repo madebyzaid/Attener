@@ -126,7 +126,7 @@ public partial class SubjectsView : UserControl
         TextBox CreateInput(string text) => new()
         {
             Text = text,
-            Height = 40,
+            Height = (double)FindResource("FieldHeight"),
             Padding = new Thickness(10, 6, 10, 6),
             FontSize = 13,
             VerticalContentAlignment = VerticalAlignment.Center,
@@ -222,7 +222,7 @@ public partial class SubjectsView : UserControl
             var professorInput = new TextBox
             {
                 Text = details.Professor,
-                Height = 40,
+                Height = (double)FindResource("FieldHeight"),
                 Padding = new Thickness(10, 6, 10, 6),
                 FontSize = 13,
                 VerticalContentAlignment = VerticalAlignment.Center,
@@ -231,7 +231,7 @@ public partial class SubjectsView : UserControl
             var venueInput = new TextBox
             {
                 Text = details.Venue,
-                Height = 40,
+                Height = (double)FindResource("FieldHeight"),
                 Padding = new Thickness(10, 6, 10, 6),
                 FontSize = 13,
                 VerticalContentAlignment = VerticalAlignment.Center,

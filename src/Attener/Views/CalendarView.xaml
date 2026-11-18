@@ -218,7 +218,7 @@
                             FontWeight="SemiBold" BorderThickness="0" Cursor="Hand" />
                 </Grid>
 
-                <ComboBox x:Name="SubjectFilter" Grid.Row="1" Height="38" Margin="0,14,0,0"
+                <ComboBox x:Name="SubjectFilter" Grid.Row="1" Height="{StaticResource FieldHeight}" Margin="0,14,0,0"
                           Style="{StaticResource SubjectTypeFilterComboBoxStyle}" SelectedValuePath="SubjectId"
                           Padding="12,0"
                           ItemContainerStyle="{StaticResource SubjectFilterItemStyle}"
