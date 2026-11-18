@@ -23,7 +23,7 @@
 
         <DataTemplate x:Key="SubjectStatTemplate">
             <Border Background="{StaticResource SurfaceBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                    CornerRadius="9" Padding="14" Margin="0,0,0,8"
+                    CornerRadius="{StaticResource CardCornerRadius}" Padding="14" Margin="0,0,0,8"
                     MouseLeftButtonUp="SubjectStat_Click" Cursor="{Binding Cursor}">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -42,13 +42,13 @@
                                            Foreground="{StaticResource SecondaryTextBrush}" />
                             </Border>
                         </StackPanel>
-                        <TextBlock Text="{Binding Professor}" FontSize="11"
+                        <TextBlock Text="{Binding Professor}" FontSize="{StaticResource FontSizeSmall}"
                                    Foreground="{StaticResource SecondaryTextBrush}" Margin="0,3,0,0"
                                    Style="{StaticResource HideIfEmptyTextStyle}" />
-                        <TextBlock Text="{Binding Venue}" FontSize="11"
+                        <TextBlock Text="{Binding Venue}" FontSize="{StaticResource FontSizeSmall}"
                                    Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,0"
                                    Style="{StaticResource HideIfEmptyTextStyle}" />
-                        <TextBlock Text="{Binding HoursSummary}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}"
+                        <TextBlock Text="{Binding HoursSummary}" FontSize="{StaticResource FontSizeSmall}" FontFamily="{StaticResource MonoFontFamily}"
                                    Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,0" />
                         <TextBlock Text="{Binding TargetNote}" FontSize="12" FontWeight="SemiBold"
                                    Foreground="{Binding TargetBrush}" Margin="0,3,0,0" />
@@ -84,7 +84,7 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock x:Name="PageHeading" Text="Statistics" FontSize="22" FontWeight="SemiBold" />
+                <TextBlock x:Name="PageHeading" Text="Statistics" FontSize="{StaticResource FontSizeTitle}" FontWeight="SemiBold" />
                 <Button x:Name="BackButton" Grid.Column="1" Content="← All subjects"
                         Click="BackToSubjects_Click" Padding="12,6" HorizontalAlignment="Right"
                         Visibility="Collapsed" />

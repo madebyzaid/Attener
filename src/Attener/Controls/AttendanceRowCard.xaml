@@ -18,15 +18,15 @@
                                    Foreground="{StaticResource SecondaryTextBrush}" />
                     </Border>
                 </StackPanel>
-                <TextBlock Text="{Binding Entry.Professor}" FontSize="11"
+                <TextBlock Text="{Binding Entry.Professor}" FontSize="{StaticResource FontSizeSmall}"
                            Foreground="{StaticResource SecondaryTextBrush}" Margin="0,3,0,0"
                            Style="{StaticResource HideIfEmptyTextStyle}" />
-                <TextBlock Text="{Binding Entry.Venue}" FontSize="11"
+                <TextBlock Text="{Binding Entry.Venue}" FontSize="{StaticResource FontSizeSmall}"
                            Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,0"
                            Style="{StaticResource HideIfEmptyTextStyle}" />
-                <TextBlock Text="{Binding TimeText}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}"
+                <TextBlock Text="{Binding TimeText}" FontSize="{StaticResource FontSizeSmall}" FontFamily="{StaticResource MonoFontFamily}"
                            Foreground="{StaticResource SecondaryTextBrush}" Margin="0,5,0,0" />
-                <TextBlock Text="Added manually" FontSize="11"
+                <TextBlock Text="Added manually" FontSize="{StaticResource FontSizeSmall}"
                            Foreground="{StaticResource AccentBrush}" Margin="0,3,0,0"
                            Visibility="{Binding ManualVisibility}" />
             </StackPanel>

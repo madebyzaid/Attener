@@ -7,7 +7,7 @@
       <RowDefinition Height="*"/>
     </Grid.RowDefinitions>
 
-    <TextBlock Text="Timetable" FontSize="22" FontWeight="SemiBold" Margin="0,0,0,18"/>
+    <TextBlock Text="Timetable" FontSize="{StaticResource FontSizeTitle}" FontWeight="SemiBold" Margin="0,0,0,18"/>
 
     <!-- Current timetable, or an earlier one to look at (read-only) -->
     <StackPanel Grid.Row="1" Margin="0,0,0,14">

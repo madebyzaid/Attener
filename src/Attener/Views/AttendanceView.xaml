@@ -36,7 +36,7 @@
                                            Foreground="{StaticResource PrimaryTextBrush}" />
                             </Border>
                         </StackPanel>
-                        <TextBlock Grid.Column="1" Text="{Binding Summary}" FontSize="13"
+                        <TextBlock Grid.Column="1" Text="{Binding Summary}" FontSize="{StaticResource FontSizeBody}"
                                    Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center" />
                     </Grid>
                     <ItemsControl ItemsSource="{Binding Rows}" ItemTemplate="{StaticResource AttendanceTemplate}" />
@@ -53,7 +53,7 @@
         </Grid.RowDefinitions>
 
         <StackPanel>
-            <TextBlock Text="Attendance" FontSize="22" FontWeight="SemiBold" />
+            <TextBlock Text="Attendance" FontSize="{StaticResource FontSizeTitle}" FontWeight="SemiBold" />
             <TextBlock Text="Mark today's classes, then catch up on earlier ones that are still unmarked."
                        FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,5,0,0" />
         </StackPanel>
@@ -70,7 +70,7 @@
                 <StackPanel>
                     <ItemsControl x:Name="CardsList" ItemTemplate="{StaticResource DayCardTemplate}" />
                     <TextBlock x:Name="NothingElseText" Text="No earlier classes are waiting."
-                               Foreground="{StaticResource SecondaryTextBrush}" FontSize="13"
+                               Foreground="{StaticResource SecondaryTextBrush}" FontSize="{StaticResource FontSizeBody}"
                                HorizontalAlignment="Center" Margin="0,6,0,20" Visibility="Collapsed" />
                 </StackPanel>
             </ScrollViewer>
