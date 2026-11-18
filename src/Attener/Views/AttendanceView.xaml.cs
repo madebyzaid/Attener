@@ -81,7 +81,7 @@ public partial class AttendanceView : UserControl
 
     private static string DescribeTime(AttendanceEntry entry) =>
         entry.IsManual
-            ? $"Added manually · {FormatHours(entry.ScheduledDurationMinutes)}"
+            ? $"Manual · {FormatHours(entry.ScheduledDurationMinutes)}"
             : entry.ScheduledStart is null || entry.ScheduledEnd is null
                 ? "No scheduled time"
                 : $"{entry.ScheduledStart}–{entry.ScheduledEnd}";

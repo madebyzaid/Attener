@@ -26,9 +26,6 @@
                            Style="{StaticResource HideIfEmptyTextStyle}" />
                 <TextBlock Text="{Binding TimeText}" FontSize="{StaticResource FontSizeSmall}" FontFamily="{StaticResource MonoFontFamily}"
                            Foreground="{StaticResource SecondaryTextBrush}" Margin="0,5,0,0" />
-                <TextBlock Text="Added manually" FontSize="{StaticResource FontSizeSmall}"
-                           Foreground="{StaticResource AccentBrush}" Margin="0,3,0,0"
-                           Visibility="{Binding ManualVisibility}" />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                 <Button Content="Present" Style="{StaticResource StatusButtonStyle}"
