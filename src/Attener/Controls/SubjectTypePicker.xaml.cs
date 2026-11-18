@@ -116,6 +116,9 @@ public partial class SubjectTypePicker : UserControl
     private void UpdateSubjectNameCursor()
     {
         SubjectNameText.Cursor = Mode == SubjectTypePickerMode.Filter ? Cursors.Hand : Cursors.Arrow;
+        // A capped-width name gets centred in its column when stretched, so in the popup keep it left.
+        // Filter mode stays stretched so the whole name area stays clickable.
+        SubjectNameText.HorizontalAlignment = Mode == SubjectTypePickerMode.Filter ? HorizontalAlignment.Stretch : HorizontalAlignment.Left;
     }
 
     private void SubjectName_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)

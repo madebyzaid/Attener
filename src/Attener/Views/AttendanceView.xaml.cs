@@ -166,6 +166,10 @@ public partial class AttendanceView : UserControl
         {
             Height = 38,
             Style = (Style)FindResource("SecondaryButtonStyle"),
+            Background = (Brush)FindResource("SurfaceBackgroundBrush"),
+            Foreground = (Brush)FindResource("PrimaryTextBrush"),
+            BorderBrush = (Brush)FindResource("BorderBrush"),
+            BorderThickness = new Thickness(1),
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             Content = pickContent,
             Margin = new Thickness(0, 6, 0, 14)
