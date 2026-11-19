@@ -5,7 +5,7 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel>
             <TextBlock Text="Settings" FontSize="{StaticResource FontSizeTitle}" FontWeight="SemiBold" />
-            <TextBlock Text="Preferences for your semester. More options will appear here over time."
+            <TextBlock Text="Preferences for your semester."
                        FontSize="12" Foreground="{StaticResource SecondaryTextBrush}"
                        TextWrapping="Wrap" Margin="0,5,0,18" />
 
